@@ -271,7 +271,6 @@ function prop_2D(output, specaxis=:f;
     fig
     if savename !== nothing
         plt.savefig(joinpath(savepath, savename))
-        plt.close(fig)
     end    
 end
 
