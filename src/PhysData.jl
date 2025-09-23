@@ -453,6 +453,7 @@ function ref_index_fun(material::Symbol, P=1.0, T=roomtemp; lookup=nothing)
             return λ -> sell(λ*1e6)
         end
     elseif material == :O3
+        # loss is correct, however, we need to de-entagle it from the capillary loss
         real_ref = ozone_real_ref()
         imag_ref = ozone_imag_ref()
         return λ -> density(:O3, P, T)/density(:O3, 1, 297)*((real_ref(λ) + imag_ref(λ)*1im)[1]) + 1 # Double check this line
