@@ -455,7 +455,7 @@ function ref_index_fun(material::Symbol, P=1.0, T=roomtemp; lookup=nothing)
     elseif material == :O3
         real_ref = ozone_real_ref()
         imag_ref = ozone_imag_ref()
-        return λ -> density(:O3, P, T)/density(:O3, 1, 297)*((real_ref(λ) - imag_ref(λ)*1im)[1]) + 1 # Double check this line
+        return λ -> density(:O3, P, T)/density(:O3, 1, 297)*((real_ref(λ) + imag_ref(λ)*1im)[1]) + 1 # Double check this line
     elseif material in metal
         nmetal = let spl = lookup_metal(material)
             function nmetal(λ)
