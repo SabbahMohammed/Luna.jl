@@ -47,6 +47,11 @@ end
     end
 end
 
+@testset "ozone" begin
+    @test real(PhysData.ref_index_fun(:O3)(200e-9))[1] ≈ 0.0003486356704754703 
+    @test imag(PhysData.ref_index_fun(:O3)(200e-9))[1] ≈ 1.4281538755331188e-5
+end
+
 @testset "Nonlinear coefficients" begin
     @test_broken PhysData.χ3(:HeB, 1) ≈ 1.2617371645226101e-27
     @test PhysData.χ3(:Ar, 1) ≈ 2.964158749949189e-26
