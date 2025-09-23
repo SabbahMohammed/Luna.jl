@@ -897,9 +897,9 @@ function lookup_metal(material::Symbol)
 end
 
 """
-    lookup_ozone(material::Symbol)
+    ozone_real_ref()
 
-Create a `CSpline` interpolant for ozone refractive index.
+Create a `CSpline` interpolant for the real part of the refractive index of ozone.
 """
 function ozone_real_ref()
     pickle = PyCall.pyimport("pickle")
@@ -911,6 +911,11 @@ function ozone_real_ref()
     return oz_cs_re
 end
 
+"""
+    ozone_imag_ref()
+
+Create a `CSpline` interpolant for the imaginary part of the refractive index of ozone.
+"""
 function ozone_imag_ref()
     pickle = PyCall.pyimport("pickle")
     filename = joinpath(Utils.datadir(), "ozone_imaginary_part.pkl")
