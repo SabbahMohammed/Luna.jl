@@ -455,7 +455,7 @@ function ref_index_fun(material::Symbol, P=1.0, T=roomtemp; lookup=nothing)
     elseif material == :O3
         real_ref = ozone_real_ref()
         imag_ref = ozone_imag_ref()
-        return λ -> real_ref(λ) + imag_ref(λ)*1im
+        return λ -> density(:O3, P, T)/density(:O3, 1, 297)*((real_ref(λ) - imag_ref(λ)*1im)[1]) + 1 # Double check this line
     elseif material in metal
         nmetal = let spl = lookup_metal(material)
             function nmetal(λ)
@@ -590,6 +590,8 @@ function γ3_gas(material::Symbol; source=nothing)
             source = :Shelton
         elseif material in (:O2,)
             source = :Zahedpour
+        elseif material in (:O3,) # this is just a placeholder to run the sim, can be changed later
+            source = :Zahedpour
         elseif material in (:N2O,)
             source = :Wahlstrand
         else
@@ -633,6 +635,11 @@ function γ3_gas(material::Symbol; source=nothing)
         if material == :O2
             n0 = ref_index(:O2, 800e-9, atm/bar, roomtemp)
             ρ = density(:O2, atm/bar, roomtemp)
+            n2 = 8.1e-24 # Table 1 in [5]
+            return 4/3*ε_0*c*n0^2/ρ * n2
+        elseif material == :O3
+            n0 = real.(ref_index(:O3, 800e-9, atm/bar, roomtemp))
+            ρ = density(:O3, atm/bar, roomtemp)
             n2 = 8.1e-24 # Table 1 in [5]
             return 4/3*ε_0*c*n0^2/ρ * n2
         else
@@ -690,6 +697,9 @@ For a glass, this simply returns 1.0.
 """
 function density(material::Symbol, P=1.0, T=roomtemp)
     material in glass && return 1.0
+    if material == :O3
+        material = :O2
+    end
     P == 0 ? zero(P) : CoolProp.PropsSI("DMOLAR", "T", T, "P", bar*P, gas_str[material])*N_A
 end
 
@@ -702,6 +712,9 @@ dens_1atm_0degC = Dict(gi => density(gi, atm/bar, 273.15) for gi in gas)
 Calculate the pressure in bar of the `gas` at number density `density` and temperature `T`.
 """
 function pressure(gas, density, T=roomtemp)
+    if gas == :O3
+        gas = :O2
+    end
     density == 0 ? zero(density) :
                    CoolProp.PropsSI("P", "T", T, "DMOLAR", density/N_A, gas_str[gas])/bar
 end
@@ -751,6 +764,8 @@ function ionisation_potential(material; unit=:SI)
         Ip = 0.5
     elseif material == :D2
         Ip = 0.5684 # from NIST Chemistry WebBook
+    elseif material == :O3
+        Ip = 0.35 # To be checked
     else
         throw(DomainError(material, "Unknown material $material"))
     end
@@ -785,6 +800,8 @@ function quantum_numbers(material)
         return 1, 0, 1
     elseif material == :O2
         return 2, 0, 0.53 # https://doi.org/10.1016/S0030-4018(99)00113-3
+    elseif material == :O3
+        return 2, 0, 0.53 # using same as O2 for now
     elseif material == :N2
         return 2, 0, 0.9 # https://doi.org/10.1016/S0030-4018(99)00113-3
     else
