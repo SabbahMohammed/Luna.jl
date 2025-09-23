@@ -7,6 +7,7 @@ import CSV
 import DelimitedFiles: readdlm
 import Polynomials
 import Luna: Maths, Utils
+import PyCall
 
 include("data/lookup_tables.jl")
 
@@ -452,8 +453,9 @@ function ref_index_fun(material::Symbol, P=1.0, T=roomtemp; lookup=nothing)
             return λ -> sell(λ*1e6)
         end
     elseif material == :O3
-        spl = ozone_ref()
-        return λ -> spl(λ*1e6)
+        real_ref = ozone_real_ref()
+        imag_ref = ozone_imag_ref()
+        return λ -> real_ref(λ) + imag_ref(λ)*1im
     elseif material in metal
         nmetal = let spl = lookup_metal(material)
             function nmetal(λ)
@@ -899,12 +901,24 @@ end
 
 Create a `CSpline` interpolant for ozone refractive index.
 """
-function ozone_ref()
-    filename = "ozone_refractive_index.pkl"
-    oz_cs = open(pybuiltin("open"), filename, "rb") do f
-        pickle.load(f)
+function ozone_real_ref()
+    pickle = PyCall.pyimport("pickle")
+    filename = joinpath(Utils.datadir(), "ozone_real_part.pkl")
+    oz_cs_re = nothing
+    PyCall.@pywith PyCall.pybuiltin("open")(filename, "rb") as f begin
+        oz_cs_re = pickle.load(f)
     end
-    return oz_cs
+    return oz_cs_re
+end
+
+function ozone_imag_ref()
+    pickle = PyCall.pyimport("pickle")
+    filename = joinpath(Utils.datadir(), "ozone_imaginary_part.pkl")
+    oz_cs_im = nothing
+    PyCall.@pywith PyCall.pybuiltin("open")(filename, "rb") as f begin
+        oz_cs_im = pickle.load(f)
+    end
+    return oz_cs_im
 end
 
 """
