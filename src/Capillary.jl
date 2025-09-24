@@ -159,7 +159,7 @@ function neff(m::MarcatiliMode, ω; z=0)
     if m.loss isa Function
         neff(m, ω, εco, vn, radius(m, z), m.loss(ω, z))
     elseif m.loss == :gas
-        neff(εco)
+        neff(m, ω, εco, vn, radius(m, z), m.loss)
     elseif m.loss isa Float64 || m.loss isa Int
         neff(m, ω, εco, vn, radius(m, z), m.loss)
     else
@@ -196,8 +196,9 @@ function neff(m::MarcatiliMode{Ta, Tco, Tcl, Val{false}}, ω, εco, vn, a) where
 end
 
 # loss contribution from gas only (no waveguide loss)
-function neff(εco)
-    n = sqrt(complex(εco))
+function neff(m::MarcatiliMode{Ta, Tco, Tcl, Tlos}, ω, εco, vn, a, lossq::Symbol) where {Ta, Tcl, Tco, Tlos}
+    k = ω/c
+    n = real(sqrt(εco - (m.unm/(k*a))^2*(1 - im*vn/(k*a))^2)) + 1im*imag(sqrt(complex(εco)))
     return (real(n) < 1e-3) ? (1e-3 + im*clamp(imag(n), 0, Inf)) : n
 end
 
