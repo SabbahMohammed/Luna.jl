@@ -158,6 +158,8 @@ function neff(m::MarcatiliMode, ω; z=0)
     vn = get_vn(εcl, m.kind)
     if m.loss isa Function
         neff(m, ω, εco, vn, radius(m, z), m.loss(ω, z))
+    elseif m.loss == :gas
+        neff(εco)
     elseif m.loss isa Float64 || m.loss isa Int
         neff(m, ω, εco, vn, radius(m, z), m.loss)
     else
@@ -191,6 +193,12 @@ function neff(m::MarcatiliMode{Ta, Tco, Tcl, Val{false}}, ω, εco, vn, a) where
     else
         error("model must be :full or :reduced")
     end 
+end
+
+# loss contribution from gas only (no waveguide loss)
+function neff(εco)
+    n = sqrt(complex(εco))
+    return (real(n) < 1e-3) ? (1e-3 + im*clamp(imag(n), 0, Inf)) : n
 end
 
 # m.loss = Float64 (in dB/m)
