@@ -397,19 +397,28 @@ Get function to return χ1 (linear susceptibility) for gases as a function of
 wavelength in SI units, pressure in bar, and temperature in Kelvin.
 """
 function χ1_fun(gas::Symbol)
-    γ = sellmeier_gas(gas)
-    f = let γ=γ, gas=gas
-        function χ1(λ, P, T)
-            γ(λ*1e6)*density(gas, P, T)
+    if gas == :O3
+        n(λ, P, T) = ref_index_fun(gas, P, T)(λ)^2 - 1
+        return n
+    else
+        γ = sellmeier_gas(gas)
+        f = let γ=γ, gas=gas
+            function χ1(λ, P, T)
+                γ(λ*1e6)*density(gas, P, T)
+            end
         end
+        return f
     end
-    return f
 end
 
 function χ1_fun(gas::Symbol, P, T)
-    γ = sellmeier_gas(gas)
-    dens = density(gas, P, T)
-    return λ -> γ(λ*1e6)*dens
+    if gas == :O3
+        return λ -> ref_index_fun(gas, P, T)(λ)^2 - 1
+    else
+        γ = sellmeier_gas(gas)
+        dens = density(gas, P, T)
+        return λ -> γ(λ*1e6)*dens
+    end
 end
 
 """
@@ -422,6 +431,13 @@ function χ1(gas::Symbol, λ, P=1.0, T=roomtemp)
     return χ1_fun(gas)(λ, P, T)
 end
 
+# """"
+#     n2χ1(n::Number)
+# Convert refractive index to χ1
+# """
+# function n2χ1(n::Number)
+#     return n^2 - 1
+# end
 
 """
     ref_index(material, λ, P=1.0, T=roomtemp; lookup=nothing)
@@ -801,6 +817,8 @@ function quantum_numbers(material)
     elseif material == :O2
         return 2, 0, 0.53 # https://doi.org/10.1016/S0030-4018(99)00113-3
     elseif material == :O3
+        return 2, 0, 0.53 # using same as O2 for now
+    elseif material == :N2O
         return 2, 0, 0.53 # using same as O2 for now
     elseif material == :N2
         return 2, 0, 0.9 # https://doi.org/10.1016/S0030-4018(99)00113-3
