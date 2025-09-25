@@ -337,7 +337,6 @@ end
 
 Aeff(m::MarcatiliMode; z=0) = radius(m, z)^2 * m.aeff_intg
 
-
 """
     gradient(gas, L, p0, p1)
 
@@ -380,6 +379,33 @@ function gradient(gas, Z, P)
     coren(ω; z) = sqrt(1 + γ(wlfreq(ω)*1e6)*dens(z))
     return coren, dens
 end
+
+"""
+    gas_mixture(gases, L)
+
+Convenience function to create density and core index profiles for
+gas mixture with changing gas density along z. `gases` is a dictionary that contain 
+a the gases mixture and thier densities, `L` if the fiber length.
+"""
+function gas_mixture(gases, press, L)
+    fracs = create_spline_pressure_function(press, L)
+    coren = (ω; z) -> ref_index_fun(gases, Tuple(s(z) for s in fracs))(wlfreq(ω))
+    return coren, fracs
+end
+
+function create_spline_pressure_function(pressures, L)
+    npts = size(pressures[1])
+    z = range(0.0, stop=L, length=npts[1])
+    
+    spline_functions = []
+    for i in 1:length(pressures)
+        spline = Maths.CSpline(z, pressures[i])
+        push!(spline_functions, spline)
+    end
+
+    return Tuple(spline_functions)
+end
+
 
 #= Avoid repeated calculation of the waveguide part of the effective index for modes with
     constant core radius.
