@@ -114,29 +114,29 @@ function _cpscb_core(dest, source, N, scale, idcs)
 end
 
 """
-    Et_to_Pt!(Pt, Et, responses, density)
+    Et_to_Pt!(Pt, Et, responses, density; z=0.0)
 
 Accumulate responses induced by Et in Pt.
 """
-function Et_to_Pt!(Pt, Et, responses, density::Number)
+function Et_to_Pt!(Pt, Et, responses, density::Number; z=0.0)
     fill!(Pt, 0)
     for resp! in responses
-        resp!(Pt, Et, density)
+        resp!(Pt, Et, density; z=z)
     end
 end
 
-function Et_to_Pt!(Pt, Et, responses, density::AbstractVector)
+function Et_to_Pt!(Pt, Et, responses, density::AbstractVector; z=0.0)
     fill!(Pt, 0)
     for ii in eachindex(density)
         for resp! in responses[ii]
-            resp!(Pt, Et, density[ii])
+            resp!(Pt, Et, density[ii]; z=z)
         end
     end
 end
 
-function Et_to_Pt!(Pt, Et, responses, density, idcs)
+function Et_to_Pt!(Pt, Et, responses, density, idcs; z=0.0)
     for i in idcs
-        Et_to_Pt!(view(Pt, :, i), view(Et, :, i), responses, density)
+        Et_to_Pt!(view(Pt, :, i), view(Et, :, i), responses, density; z=z)
     end
 end
 
@@ -274,7 +274,7 @@ function Erω_to_Prω!(t, x)
     Modes.to_space!(t.Erω, t.Emω, x, t.ts, z=t.z)
     to_time!(t.Er, t.Erω, t.Erωo, inv(t.FT))
     # get nonlinear pol at r,θ
-    Et_to_Pt!(t.Pr, t.Er, t.resp, t.density)
+    Et_to_Pt!(t.Pr, t.Er, t.resp, t.density; z=t.z)
     @. t.Pr *= t.grid.towin
     to_freq!(t.Prω, t.Prωo, t.Pr, t.FT)
     @. t.Prω *= t.grid.ωwin
@@ -362,7 +362,7 @@ const nlscale = sqrt(PhysData.ε_0*PhysData.c/2)
 function (t::TransModeAvg)(nl, Eω, z)
     to_time!(t.Eto, Eω, t.Eωo, inv(t.FT))
     @. t.Eto /= nlscale*sqrt(t.aeff(z))
-    Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z))
+    Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z); z=z)
     @. t.Pto *= t.grid.towin
     to_freq!(nl, t.Pωo, t.Pto, t.FT)
     t.norm!(nl, z)
@@ -466,7 +466,7 @@ place the result in `nl`
 function (t::TransRadial)(nl, Eω, z)
     to_time!(t.Eto, Eω, t.Eωo, inv(t.FT)) # transform ω -> t
     ldiv!(t.Eto, t.QDHT, t.Eto) # transform k -> r
-    Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z), t.idcs) # add up responses
+    Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z), t.idcs; z=z) # add up responses
     @. t.Pto *= t.grid.towin # apodisation
     mul!(t.Pto, t.QDHT, t.Pto) # transform r -> k
     to_freq!(nl, t.Pωo, t.Pto, t.FT) # transform t -> ω
@@ -597,7 +597,7 @@ function (t::TransFree)(nl, Eωk, z)
     fill!(t.Eωo, 0)
     copy_scale!(t.Eωo, Eωk, length(t.grid.ω), t.scale)
     ldiv!(t.Eto, t.FT, t.Eωo) # transform (ω, ky, kx) -> (t, y, x)
-    Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z), t.idcs) # add up responses
+    Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z), t.idcs; z=z) # add up responses
     @. t.Pto *= t.grid.towin # apodisation
     mul!(t.Pωo, t.FT, t.Pto) # transform (t, y, x) -> (ω, ky, kx)
     copy_scale!(nl, t.Pωo, length(t.grid.ω), 1/t.scale)

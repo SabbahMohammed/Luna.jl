@@ -23,7 +23,7 @@ end
 "Kerr response for real field"
 function Kerr_field(γ3)
     Kerr = let γ3 = γ3
-        function Kerr(out, E, ρ)
+        function Kerr(out, E, ρ; z=0.0)
             if size(E,2) == 1
                 KerrScalar!(out, E, ρ*ε_0*γ3)
             else
@@ -38,7 +38,7 @@ function Kerr_field_nothg(γ3, n)
     E = Array{Float64}(undef, n)
     hilbert = Maths.plan_hilbert(E)
     Kerr = let γ3 = γ3, hilbert = hilbert
-        function Kerr(out, E, ρ)
+        function Kerr(out, E, ρ; z=0.0)
             out .+= ρ*3/4*ε_0*γ3.*abs2.(hilbert(E)).*E
         end
     end
@@ -62,7 +62,7 @@ end
 "Kerr response for envelope"
 function Kerr_env(γ3)
     Kerr = let γ3 = γ3
-        function Kerr(out, E, ρ)
+        function Kerr(out, E, ρ; z=0.0)
             if size(E,2) == 1
                 KerrScalarEnv!(out, E, ρ*ε_0*γ3)
             else
@@ -77,7 +77,7 @@ end
 function Kerr_env_thg(γ3, ω0, t)
     C = exp.(2im*ω0.*t)
     Kerr = let γ3 = γ3, C = C
-        function Kerr(out, E, ρ)
+        function Kerr(out, E, ρ; z=0.0)
             @. out += ρ*ε_0*γ3/4*(3*abs2(E) + C*E^2)*E
         end
     end
@@ -85,7 +85,7 @@ end
 
 "Response type for cumtrapz-based plasma polarisation, adapted from:
 M. Geissler, G. Tempea, A. Scrinzi, M. Schnürer, F. Krausz, and T. Brabec, Physical Review Letters 83, 2930 (1999)."
-struct PlasmaCumtrapz{R, EType, tType}
+struct PlasmaCumtrapz{R, EType, tType, PType}
     ratefunc::R # the ionization rate function
     ionpot::Float64 # the ionization potential (for calculation of ionization loss)
     rate::tType # buffer to hold the rate
@@ -94,15 +94,22 @@ struct PlasmaCumtrapz{R, EType, tType}
     J::EType # buffer to hold the plasma current
     P::EType # buffer to hold the plasma polarisation
     δt::Float64 # the time step
-    preionfrac::Float64 # the pre-ionisation fraction
+    preionfrac::PType # the pre-ionisation fraction (Float64 or callable function of z)
 end
 
 """
-    PlasmaCumtrapz(t, E, ratefunc, ionpot)
+    PlasmaCumtrapz(t, E, ratefunc, ionpot; preionfrac=0.0)
 
 Construct the Plasma polarisation response for a field on time grid `t`
 with example electric field like `E`, an ionization rate callable
 `ratefunc` and ionization potential `ionpot`.
+
+The `preionfrac` can be either:
+- A `Float64` constant value (default: 0.0)
+- A callable (function or interpolation) that takes `z` (position) as input and returns the pre-ionization fraction
+
+For z-dependent pre-ionization, you can use an interpolation object from Interpolations.jl
+or a custom function that maps z to the pre-ionization fraction.
 """
 function PlasmaCumtrapz(t, E, ratefunc, ionpot; preionfrac=0.0)
     rate = similar(t)
@@ -110,18 +117,39 @@ function PlasmaCumtrapz(t, E, ratefunc, ionpot; preionfrac=0.0)
     phase = similar(E)
     J = similar(E)
     P = similar(E)
-    !(0.0 <= preionfrac <= 1.0) && throw(DomainError(preionfrac, "preionfrac must be between 0 and 1"))
-    if preionfrac > 0.0
-        @warn("Using preionfrac > 0.0 is not a well founded physical model. Use only after careful consideration.")
+    # Validate preionfrac
+    if preionfrac isa Number
+        !(0.0 <= preionfrac <= 1.0) && throw(DomainError(preionfrac, "preionfrac must be between 0 and 1"))
+        if preionfrac > 0.0
+            @warn("Using preionfrac > 0.0 is not a well founded physical model. Use only after careful consideration.")
+        end
+    else  # preionfrac is a callable
+        @warn("Using z-dependent preionfrac. Ensure the function returns values between 0 and 1.")
     end
     return PlasmaCumtrapz(ratefunc, ionpot, rate, fraction, phase, J, P, t[2]-t[1], preionfrac)
 end
 
+"""
+    getpreionfrac(Plas::PlasmaCumtrapz, z)
+
+Evaluate the pre-ionization fraction at position `z`.
+If `preionfrac` is a constant, returns that constant.
+If `preionfrac` is a callable, evaluates it at `z`.
+"""
+function getpreionfrac(Plas::PlasmaCumtrapz, z)
+    if Plas.preionfrac isa Number
+        return Plas.preionfrac
+    else
+        return Plas.preionfrac(z)
+    end
+end
+
 "The plasma response for a scalar electric field"
-function PlasmaScalar!(Plas::PlasmaCumtrapz, E)
+function PlasmaScalar!(Plas::PlasmaCumtrapz, E, z=0.0)
     Plas.ratefunc(Plas.rate, E)
     Maths.cumtrapz!(Plas.fraction, Plas.rate, Plas.δt)
-    @. Plas.fraction = Plas.preionfrac + 1 - exp(-Plas.fraction)
+    preionfrac_z = getpreionfrac(Plas, z)
+    @. Plas.fraction = preionfrac_z + 1 - exp(-Plas.fraction)
     @. Plas.phase = Plas.fraction * e_ratio * E
     Maths.cumtrapz!(Plas.J, Plas.phase, Plas.δt)
     for ii in eachindex(E)
@@ -141,13 +169,14 @@ for the vector field.
 
 A similar approach was used in: C Tailliez et al 2020 New J. Phys. 22 103038.  
 """
-function PlasmaVector!(Plas::PlasmaCumtrapz, E)
+function PlasmaVector!(Plas::PlasmaCumtrapz, E, z=0.0)
     Ex = E[:,1]
     Ey = E[:,2]
     Em = @. hypot.(Ex, Ey)
     Plas.ratefunc(Plas.rate, Em)
     Maths.cumtrapz!(Plas.fraction, Plas.rate, Plas.δt)
-    @. Plas.fraction = Plas.preionfrac + 1 - exp(-Plas.fraction)
+    preionfrac_z = getpreionfrac(Plas, z)
+    @. Plas.fraction = preionfrac_z + 1 - exp(-Plas.fraction)
     @. Plas.phase = Plas.fraction * e_ratio * E
     Maths.cumtrapz!(Plas.J, Plas.phase, Plas.δt)
     for ii in eachindex(Em)
@@ -161,17 +190,17 @@ function PlasmaVector!(Plas::PlasmaCumtrapz, E)
 end
 
 "Handle plasma polarisation routing to `PlasmaVector` or `PlasmaScalar`."
-function (Plas::PlasmaCumtrapz)(out, Et, ρ)
+function (Plas::PlasmaCumtrapz)(out, Et, ρ; z=0.0)
     if ndims(Et) > 1
         if size(Et, 2) == 1 # handle scalar case but within modal simulation
-            PlasmaScalar!(Plas, reshape(Et, size(Et,1)))
+            PlasmaScalar!(Plas, reshape(Et, size(Et,1)), z)
             out .+= ρ .* reshape(Plas.P, size(Et))
         else
-            PlasmaVector!(Plas, Et) # vector case
+            PlasmaVector!(Plas, Et, z) # vector case
             out .+= ρ .* Plas.P
         end
     else
-        PlasmaScalar!(Plas, Et) # straight scalar case
+        PlasmaScalar!(Plas, Et, z) # straight scalar case
         out .+= ρ .* Plas.P
     end
 end
@@ -279,7 +308,7 @@ function sqr!(R::RamanPolarEnv, E)
 end
 
 "Calculate Raman polarisation for field/envelope Et"
-function (R::RamanPolar)(out, Et, ρ)
+function (R::RamanPolar)(out, Et, ρ; z=0.0)
     # get the field as a 1D Array
     n = size(Et, 1)
     if ndims(Et) > 1
