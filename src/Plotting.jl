@@ -118,7 +118,7 @@ end
 
 Plot all statistics available in `output`. Additional `kwargs` are passed onto `plt.plot()`
 """
-function stats(output; savename=nothing, savepath=pwd(), kwargs...)
+function stats(output; kwargs...)
     stats = output["stats"]
 
     pstats = [] # pulse statistics
@@ -160,6 +160,13 @@ function stats(output; savename=nothing, savepath=pwd(), kwargs...)
     haskey(stats, "dz") && push!(fstats, (1e6*stats["dz"], "Stepsize (μm)"))
     haskey(stats, "core_radius") && push!(fstats, (1e6*stats["core_radius"], "Core radius (μm)"))
     haskey(stats, "zdw") && push!(fstats, (1e9*stats["zdw"], "ZDW (nm)"))
+    haskey(stats, "mode_reconstruction_error") && push!(
+        fstats, (stats["mode_reconstruction_error"], "Mode error"))
+    haskey(stats, "transverse_points") && push!(
+        fstats, (stats["transverse_points"], "Transverse grid points"))
+    haskey(stats, "transverse_integral_error_rel") && push!(
+        fstats, (stats["transverse_integral_error_rel"], "Transverse integral error (relative)"))
+
 
     z = stats["z"]*1e2
 
@@ -180,11 +187,6 @@ function stats(output; savename=nothing, savepath=pwd(), kwargs...)
         end
         pfig.tight_layout()
     end
-    if savename !== nothing
-        savename1 = savename*"_1.png"
-        plt.savefig(joinpath(savepath, savename1))
-        plt.close(pfig)
-    end
     
     Npl = length(fstats)
     if Npl > 0
@@ -201,12 +203,7 @@ function stats(output; savename=nothing, savepath=pwd(), kwargs...)
         end
         ffig.tight_layout()
     end
-    
-    if savename !== nothing
-        savename2 = savename*"_2.png"
-        plt.savefig(joinpath(savepath, savename2))
-        plt.close(ffig)
-    end
+    [pfig, ffig]
 end
 
 """
@@ -243,7 +240,7 @@ the sum of all modes.
 function prop_2D(output, specaxis=:f;
                  trange=(-50e-15, 50e-15), bandpass=nothing,
                  λrange=(150e-9, 2000e-9), dBmin=-60,
-                 resolution=nothing, modes=nothing, oversampling=4, savename=nothing, savepath=pwd(),
+                 resolution=nothing, modes=nothing, oversampling=4,
                  kwargs...)
     z = output["z"]*1e2
     if specaxis == :λ
@@ -270,9 +267,6 @@ function prop_2D(output, specaxis=:f;
                          kwargs...)
     end
     fig
-    if savename !== nothing
-        plt.savefig(joinpath(savepath, savename))
-    end    
 end
 
 modeidcs(m::Int, ml) = [m]
@@ -385,7 +379,7 @@ Other `kwargs` are passed onto `plt.plot`.
 function time_1D(output, zslice=maximum(output["z"]);
                 y=:Pt, modes=nothing,
                 oversampling=4, trange=(-50e-15, 50e-15), bandpass=nothing,
-                FTL=false, propagate=nothing, savename=nothing, savepath=pwd(),
+                FTL=false, propagate=nothing,
                 kwargs...)
     t, Et, zactual = getEt(output, zslice,
                            trange=trange, oversampling=oversampling, bandpass=bandpass,
@@ -436,10 +430,6 @@ function time_1D(output, zslice=maximum(output["z"]);
     sfig.set_size_inches(8.5, 5)
     sfig.tight_layout()
     sfig
-    if savename !== nothing
-        plt.savefig(joinpath(savepath, savename))
-        plt.close(sfig)
-    end
 end
 
 # Automatically find power unit depending on scale of electric field.
@@ -471,7 +461,7 @@ Other `kwargs` are passed onto `plt.plot`.
 """
 function spec_1D(output, zslice=maximum(output["z"]), specaxis=:λ;
                  modes=nothing, λrange=(150e-9, 1200e-9),
-                 log10=true, log10min=1e-6, resolution=nothing, savename=nothing, savepath=pwd(),
+                 log10=true, log10min=1e-6, resolution=nothing,
                  kwargs...)
     if specaxis == :λ
         specx, Iω, zactual = getIω(output, specaxis, zslice, specrange=λrange, resolution=resolution)
@@ -514,10 +504,6 @@ function spec_1D(output, zslice=maximum(output["z"]), specaxis=:λ;
     sfig.set_size_inches(8.5, 5)
     sfig.tight_layout()
     sfig
-    if savename !== nothing
-        plt.savefig(joinpath(savepath, savename))
-        plt.close(sfig)
-    end
 end
 
 dashes = [(0, (10, 1)),
@@ -555,7 +541,7 @@ function spectrogram(grid::Grid.AbstractGrid, output, zslice, specaxis=:λ;
 end
 
 function spectrogram(t::AbstractArray, Et::AbstractArray, specaxis=:λ;
-                     trange, N, fw, λrange=(150e-9, 2000e-9), log=false, dBmin=-40, savename=nothing, savepath=pwd(),
+                     trange, N, fw, λrange=(150e-9, 2000e-9), log=false, dBmin=-40,
                      kwargs...)
     ω = Maths.rfftfreq(t)[2:end]
     tmin, tmax = extrema(trange)
@@ -576,10 +562,6 @@ function spectrogram(t::AbstractArray, Et::AbstractArray, specaxis=:λ;
     log && plt.clim(dBmin, 0)
     plt.colorbar()
     fig
-    if savename !== nothing
-        plt.savefig(joinpath(savepath, savename))
-        plt.close(fig)
-    end
 end
 
 function energy(output; modes=nothing, bandpass=nothing, figsize=(7, 5))
