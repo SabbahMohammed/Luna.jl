@@ -294,3 +294,88 @@ end
 
     @test isapprox(out["stats"]["peakpower_allmodes"][1], pHE11+pHE12; rtol=1e-4)
 end
+
+@testset "recombination heating" begin
+    ne = [1.0e20]
+    frep = 1.0e6
+    npulses = 3
+    τrecomb = 2.0e-6
+    τcool = Inf
+    T0 = 300.0
+    Cv = 2.0
+    Ip = 1.0
+
+    out = Processing.recombination_heating(ne; frep, npulses, τrecomb, τcool, T0, Cv, Ip)
+
+    d = exp(-(1/frep)/τrecomb)
+    n1 = ne[1] * d
+    n2 = (n1 + ne[1]) * d
+    n3 = (n2 + ne[1]) * d
+
+    @test isapprox(out.residual_electrondensity[1, 1], n1; rtol=1e-12)
+    @test isapprox(out.residual_electrondensity[1, 2], n2; rtol=1e-12)
+    @test isapprox(out.residual_electrondensity[1, 3], n3; rtol=1e-12)
+
+    ΔT1 = Ip*(ne[1] - n1)/Cv
+    ΔT2 = Ip*((n1 + ne[1]) - n2)/Cv
+    ΔT3 = Ip*((n2 + ne[1]) - n3)/Cv
+
+    @test isapprox(out.temperature[1, 1], T0 + ΔT1; rtol=1e-12)
+    @test isapprox(out.temperature[1, 2], T0 + ΔT1 + ΔT2; rtol=1e-12)
+    @test isapprox(out.temperature[1, 3], T0 + ΔT1 + ΔT2 + ΔT3; rtol=1e-12)
+
+    @test all(isapprox.(out.density_scale[1, :], T0 ./ out.temperature[1, :]; rtol=1e-12))
+    @test out.pulse_times[end] ≈ npulses/frep
+end
+
+@testset "recombination heating steadystate" begin
+    ne   = [1.0e20, 0.5e20]
+    frep = 1.0e6
+    τrecomb = 2.0e-6
+    τcool   = 10.0e-6
+    T0 = 300.0
+    Cv = 2.0
+    Ip = 1.0
+
+    T_ss = Processing.recombination_heating_steadystate(ne; frep, τrecomb, τcool, T0, Cv, Ip)
+
+    cool_decay = exp(-(1/frep)/τcool)
+    @test isapprox(T_ss[1], T0 + Ip*ne[1] / (Cv*(1 - cool_decay)); rtol=1e-12)
+    @test isapprox(T_ss[2], T0 + Ip*ne[2] / (Cv*(1 - cool_decay)); rtol=1e-12)
+    @test all(T_ss .>= T0)
+
+    # Running many pulses should converge to T_ss
+    npulses_conv = ceil(Int, 10 * frep * τcool)
+    h = Processing.recombination_heating(ne; frep, npulses=npulses_conv,
+                                         τrecomb, τcool, T0, Cv, Ip)
+    @test isapprox(h.temperature[1, end], T_ss[1]; rtol=1e-3)
+end
+
+@testset "heating beta shift" begin
+    @test Processing.heating_beta_shift(:Ar, 1.0, 800e-9; density_scale=1.0) ≈ 0.0
+
+    Δβ_neg = Processing.heating_beta_shift(:Ar, 1.0, 800e-9; density_scale=0.99)
+    @test Δβ_neg < 0.0
+
+    Δβ1 = Processing.heating_beta_shift(:Ar, 1.0, 800e-9; density_scale=0.98)
+    Δβ2 = Processing.heating_beta_shift(:Ar, 1.0, 800e-9; density_scale=0.96)
+    @test isapprox(Δβ2, 2*Δβ1; rtol=1e-8)
+
+    Δβv = Processing.heating_beta_shift(:Ar, 1.0, [400e-9, 800e-9, 1200e-9]; density_scale=0.99)
+    @test length(Δβv) == 3
+    @test all(Δβv .< 0)
+end
+
+@testset "gas heat capacity volumetric" begin
+    # Monatomic ideal gas: Cv_molar = (3/2)*R
+    R = 8.314
+    Cv_molar_ideal_He = (3/2)*R
+    rho_mol_He = PhysData.density(:He, 1.0) / PhysData.N_A
+    Cv_He = PhysData.gas_heat_capacity_volumetric(:He, 1.0)
+    @test isapprox(Cv_He, Cv_molar_ideal_He * rho_mol_He; rtol=0.01)
+
+    Cv_He2 = PhysData.gas_heat_capacity_volumetric(:He, 2.0)
+    @test isapprox(Cv_He2 / Cv_He, 2.0; rtol=0.01)
+
+    @test PhysData.gas_heat_capacity_volumetric(:Ar, 0.0) == 0.0
+end

@@ -1085,6 +1085,165 @@ end
 
 
 """
+    recombination_heating(ne_peak; frep, npulses, τrecomb, τcool=Inf, T0=293.15,
+                          Cv=1.0, Ip=PhysData.ionisation_potential(:Ar), η=1.0)
+
+Post-process pulse-train heating from recombination of free electrons.
+
+`ne_peak` is the free-electron density profile after a single pulse (typically vs propagation
+distance `z`) in `m^-3`. The model then applies a pulse train with repetition rate `frep`
+for `npulses` pulses and updates the residual electron density and gas temperature between
+pulses using exponential decays.
+
+The update at each pulse interval `Δt = 1/frep` is:
+
+1. Add newly created electrons: `n -> n + ne_peak`
+2. Recombine over `Δt`: `n_next = n * exp(-Δt/τrecomb)`
+3. Deposit recombination heat: `ΔU = η * Ip * (n - n_next)`
+4. Cool thermally: `T_next = T0 + (T - T0) * exp(-Δt/τcool) + ΔU/Cv`
+
+`Cv` is the volumetric heat capacity in `J/(m^3 K)` and may be a scalar or an array with the
+same length as `ne_peak`.
+
+Returns a named tuple with keys:
+- `pulse_times` in seconds
+- `temperature` matrix `(length(ne_peak), npulses)` in kelvin
+- `residual_electrondensity` matrix `(length(ne_peak), npulses)` in `m^-3`
+- `density_scale` matrix `(length(ne_peak), npulses)` where `density_scale = T0/T`
+"""
+function recombination_heating(ne_peak::AbstractVector;
+                               frep,
+                               npulses::Int,
+                               τrecomb,
+                               τcool=Inf,
+                               T0=293.15,
+                               Cv=1.0,
+                               Ip=PhysData.ionisation_potential(:Ar),
+                               η=1.0)
+    frep > 0 || error("`frep` must be > 0")
+    npulses > 0 || error("`npulses` must be > 0")
+    τrecomb > 0 || error("`τrecomb` must be > 0")
+    τcool > 0 || τcool == Inf || error("`τcool` must be > 0 or `Inf`")
+    T0 > 0 || error("`T0` must be > 0")
+    Ip >= 0 || error("`Ip` must be >= 0")
+    η >= 0 || error("`η` must be >= 0")
+
+    ne = collect(float.(ne_peak))
+    any(ne .< 0) && error("`ne_peak` must contain non-negative values")
+
+    if Cv isa Number
+        Cv_vec = fill(float(Cv), length(ne))
+    else
+        Cv_vec = collect(float.(Cv))
+        length(Cv_vec) == length(ne) || error("`Cv` must be scalar or same length as `ne_peak`")
+    end
+    any(Cv_vec .<= 0) && error("`Cv` must be strictly positive")
+
+    Δt = 1/frep
+    recomb_decay = exp(-Δt/τrecomb)
+    cool_decay = τcool == Inf ? 1.0 : exp(-Δt/τcool)
+
+    temperature = Array{Float64}(undef, length(ne), npulses)
+    residual_electrondensity = Array{Float64}(undef, length(ne), npulses)
+    density_scale = Array{Float64}(undef, length(ne), npulses)
+
+    T_prev = fill(float(T0), length(ne))
+    n_prev = zeros(Float64, length(ne))
+
+    for pidx in 1:npulses
+        @. n_prev = n_prev + ne
+        n_after = n_prev .* recomb_decay
+        recombined = n_prev .- n_after
+        ΔT = @. η * Ip * recombined / Cv_vec
+        @. T_prev = T0 + (T_prev - T0) * cool_decay + ΔT
+
+        residual_electrondensity[:, pidx] .= n_after
+        temperature[:, pidx] .= T_prev
+        @. density_scale[:, pidx] = T0 / T_prev
+
+        n_prev .= n_after
+    end
+
+    pulse_times = collect((1:npulses) ./ frep)
+    return (pulse_times=pulse_times,
+            temperature=temperature,
+            residual_electrondensity=residual_electrondensity,
+            density_scale=density_scale)
+end
+
+"""
+    recombination_heating(output::AbstractOutput; kwargs...)
+
+Convenience wrapper around [`recombination_heating(ne_peak; ...)`](@ref) that uses
+`output["stats"]["electrondensity"]` as `ne_peak` and also returns `z`.
+
+Requires electron-density statistics to be present in the output.
+"""
+function recombination_heating(output::AbstractOutput; kwargs...)
+    haskey(output, "stats") || error("Output has no `stats` entry")
+    haskey(output["stats"], "electrondensity") ||
+        error("Output stats do not contain `electrondensity`")
+
+    ne_peak = output["stats"]["electrondensity"]
+    z = haskey(output["stats"], "z") ? output["stats"]["z"] : output["z"]
+    out = recombination_heating(ne_peak; kwargs...)
+    merge((z=z, ne_peak=ne_peak), out)
+end
+
+
+"""
+    recombination_heating_steadystate(ne_peak; frep, τrecomb, τcool, ...)
+
+Estimate the quasi-steady-state temperature rise from pulse-train recombination heating.
+This is the analytical fixed-point of the update equations reached after many pulses.
+Requires `τcool < Inf` (finite cooling); the temperature diverges without cooling.
+Returns a vector of steady-state temperatures (K) with the same length as `ne_peak`.
+"""
+function recombination_heating_steadystate(ne_peak::AbstractVector;
+                                           frep,
+                                           τrecomb,
+                                           τcool,
+                                           T0=293.15,
+                                           Cv=1.0,
+                                           Ip=PhysData.ionisation_potential(:Ar),
+                                           η=1.0)
+    τcool == Inf && error("`τcool` must be finite for a steady state to exist")
+    frep > 0 || error("`frep` must be > 0")
+    τrecomb > 0 || error("`τrecomb` must be > 0")
+    τcool > 0 || error("`τcool` must be > 0")
+
+    ne = float.(collect(ne_peak))
+    Cv_vec = Cv isa Number ? fill(float(Cv), length(ne)) : collect(float.(Cv))
+    length(Cv_vec) == length(ne) ||
+        error("`Cv` must be scalar or same length as `ne_peak`")
+
+    Δt = 1/frep
+    cool_decay = exp(-Δt/τcool)
+
+    # At steady state: n_ss = ne / (1 - recomb_decay); ΔT per pulse = η*Ip*ne/Cv
+    # T_ss = T0 + ΔT_per_pulse / (1 - cool_decay)
+    @. T0 + η * Ip * ne / (Cv_vec * (1 - cool_decay))
+end
+
+"""
+    heating_beta_shift(gas, pressure, λ; density_scale=1.0, T0=PhysData.roomtemp)
+
+Estimate the wave-vector perturbation Δβ(λ) [rad/m] introduced by a fractional gas-density
+change `density_scale = T0/T` (as returned in `recombination_heating`).
+
+    Δβ(λ) = (n_gas(λ,P,T0) - 1) × (density_scale - 1) × 2π/λ
+
+`λ` may be a scalar or a vector of wavelengths (m). `density_scale` may be a scalar or an
+array broadcastable against `λ`.
+"""
+function heating_beta_shift(gas::Symbol, pressure, λ;
+                            density_scale=1.0, T0=PhysData.roomtemp)
+    ngas_minus1 = PhysData.ref_index.(gas, λ, pressure, T0) .- 1
+    @. ngas_minus1 * (density_scale - 1) * 2π / λ
+end
+
+
+"""
     nearest_z(output, z)
 
 Return the index of saved z-position(s) closest to the position(s) `z`. Output is always

@@ -711,6 +711,24 @@ function pressure(gas, density, T=roomtemp)
 end
 
 """
+    gas_heat_capacity_volumetric(gas, P=1.0, T=roomtemp)
+
+Return the volumetric isochoric (constant-volume) heat capacity `Cv` of `gas` in J/(m³·K) at
+pressure `P` [bar] and temperature `T` [K].
+
+Internally this calls CoolProp to get the molar isochoric heat capacity and multiplies by the
+molar number density to give the energy stored per unit volume per kelvin:
+
+    Cv [J/(m³·K)] = Cv_molar [J/(mol·K)] × (density [m⁻³] / N_A) [mol/m³]
+"""
+function gas_heat_capacity_volumetric(gas::Symbol, P=1.0, T=roomtemp)
+    P == 0 && return 0.0
+    Cv_molar = CoolProp.PropsSI("CVMOLAR", "T", T, "P", bar*P, gas_str[gas])  # J/(mol·K)
+    ρ_molar  = density(gas, P, T) / N_A                                        # mol/m³
+    return Cv_molar * ρ_molar  # J/(m³·K)
+end
+
+"""
     densityspline(gas; Pmax, Pmin=0, N=2^10, T=roomtemp)
 
 Create a `CSpline` interpolant for the density of the `gas` between pressures `Pmin` and
