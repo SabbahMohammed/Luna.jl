@@ -120,29 +120,29 @@ end
 # response, so including noise in the field passed to all response functions is physically
 # reasonable. The noise meaningfully affects only Kerr and Raman processes, as intended.
 """
-    Et_to_Pt!(Pt, Et, responses, density)
+    Et_to_Pt!(Pt, Et, responses, density; z=0.0)
 
 Accumulate responses induced by Et in Pt.
 """
-function Et_to_Pt!(Pt, Et, responses, density::Number)
+function Et_to_Pt!(Pt, Et, responses, density::Number; z=0.0)
     fill!(Pt, 0)
     for resp! in responses
-        resp!(Pt, Et, density)
+        resp!(Pt, Et, density; z=z)
     end
 end
 
-function Et_to_Pt!(Pt, Et, responses, density::AbstractVector)
+function Et_to_Pt!(Pt, Et, responses, density::AbstractVector; z=0.0)
     fill!(Pt, 0)
     for ii in eachindex(density)
         for resp! in responses[ii]
-            resp!(Pt, Et, density[ii])
+            resp!(Pt, Et, density[ii]; z=z)
         end
     end
 end
 
-function Et_to_Pt!(Pt, Et, responses, density, idcs)
+function Et_to_Pt!(Pt, Et, responses, density, idcs; z=0.0)
     for i in idcs
-        Et_to_Pt!(view(Pt, :, i), view(Et, :, i), responses, density)
+        Et_to_Pt!(view(Pt, :, i), view(Et, :, i), responses, density; z=z)
     end
 end
 
@@ -313,9 +313,9 @@ function Erω_to_Prω!(t, x)
         Modes.to_space!(t.Erω, t.Emω_noise, x, t.ts, z=t.z)
         to_time!(t.Er_noise, t.Erω, t.Erωo, inv(t.FT))
         @. t.Er_nl = t.Er + t.Er_noise
-        Et_to_Pt!(t.Pr, t.Er_nl, t.resp, t.density)
+        Et_to_Pt!(t.Pr, t.Er_nl, t.resp, t.density; z=t.z)
     else
-        Et_to_Pt!(t.Pr, t.Er, t.resp, t.density)
+        Et_to_Pt!(t.Pr, t.Er, t.resp, t.density; z=t.z)
     end
     @. t.Pr *= t.grid.towin
     to_freq!(t.Prω, t.Prωo, t.Pr, t.FT)
@@ -442,9 +442,9 @@ function (t::TransModeAvg)(nl, Eω, z)
     # normalisation factor (nlscale × √Aeff) so it enters in physical units.
     if !isnothing(t.Et_noise)
         @. t.Et_nl = t.Eto + t.Et_noise / sc
-        Et_to_Pt!(t.Pto, t.Et_nl, t.resp, t.densityfun(z))
+        Et_to_Pt!(t.Pto, t.Et_nl, t.resp, t.densityfun(z); z=z)
     else
-        Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z))
+        Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z); z=z)
     end
     @. t.Pto *= t.grid.towin
     to_freq!(nl, t.Pωo, t.Pto, t.FT)
@@ -570,9 +570,9 @@ function (t::TransRadial)(nl, Eω, z)
     # propagating field (Eto) is never contaminated.
     if !isnothing(t.Et_noise)
         @. t.Et_nl = t.Eto + t.Et_noise
-        Et_to_Pt!(t.Pto, t.Et_nl, t.resp, t.densityfun(z), t.idcs)
+        Et_to_Pt!(t.Pto, t.Et_nl, t.resp, t.densityfun(z), t.idcs; z=z)
     else
-        Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z), t.idcs)
+        Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z), t.idcs; z=z)
     end
     @. t.Pto *= t.grid.towin # apodisation
     mul!(t.Pto, t.QDHT, t.Pto) # transform r -> k
@@ -734,9 +734,9 @@ function (t::TransFree)(nl, Eωk, z)
     # propagating field (Eto) is never contaminated.
     if !isnothing(t.Et_noise)
         @. t.Et_nl = t.Eto + t.Et_noise
-        Et_to_Pt!(t.Pto, t.Et_nl, t.resp, t.densityfun(z), t.idcs)
+        Et_to_Pt!(t.Pto, t.Et_nl, t.resp, t.densityfun(z), t.idcs; z=z)
     else
-        Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z), t.idcs)
+        Et_to_Pt!(t.Pto, t.Eto, t.resp, t.densityfun(z), t.idcs; z=z)
     end
     @. t.Pto *= t.grid.towin # apodisation
     mul!(t.Pωo, t.FT, t.Pto) # transform (t, y, x) -> (ω, ky, kx)
