@@ -1220,6 +1220,26 @@ function lookup_mirror(type)
         ϕspl = Maths.BSpline(λGDD, ϕ)
         return λ -> rspl(λ) * exp(-1im*ϕspl(λ)) * Maths.planck_taper(
             λ, 880e-9, 900e-9, 1200e-9, 1220e-9)
+    elseif type == :HD1820
+        dat = readdlm(joinpath(Utils.datadir(), "HD1820.csv"), ','; skipstart=1)
+        λR = dat[:, 1] * 1e-9
+        R = dat[:, 2] # reflectivity per mirror 
+        rspl = Maths.BSpline(λR, sqrt.(R/100))
+        λGDD = dat[:, 3] * 1e-9
+        ω = wlfreq.(λGDD)
+        GDD = dat[:, 4] .* 1e-30 # GDD per mirror
+        ϕ = Maths.cumtrapz(Maths.cumtrapz(GDD, ω), ω)
+        ωfs = ω*1e-15
+        ωfs0 = wlfreq(515e-9)*1e-15
+        p = Polynomials.fit(ωfs .- ωfs0, ϕ, 5)
+        p[2:end] = 0 # polynomials use 0-based indexing - only use constant and linear term
+        ϕ .-= p.(ωfs .- ωfs0) # subtract linear part
+        ϕspl = Maths.BSpline(λGDD, ϕ)
+        # return λ -> rspl(λ) * exp(-1im*ϕspl(λ)) * Maths.planck_taper(
+        #     λ, 440e-9, 460e-9, 575e-9, 695e-9)
+        # return λ -> rspl(λ)
+        return λ -> exp(-1im*ϕspl(λ)) * Maths.planck_taper(
+            λ, 440e-9, 460e-9, 575e-9, 695e-9)
     elseif type == :ThorlabsUMC
         # λ (nm), R(p) (%), R(s) (%)
         Rdat = CSV.File(joinpath(Utils.datadir(), "UCxx-15FS_R.csv"))
