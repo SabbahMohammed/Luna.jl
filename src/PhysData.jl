@@ -773,6 +773,12 @@ function ionisation_potential(material; unit=:SI)
         Ip = 0.5
     elseif material == :D2
         Ip = 0.5684 # from NIST Chemistry WebBook
+    elseif material == :O2_diss
+        Ip = 5.12 / 27.21138602 # O=O bond dissociation energy, eV -> atomic units
+    elseif material == :N2_diss
+        Ip = 9.79 / 27.21138602 # N#N bond dissociation energy, eV -> atomic units
+    elseif material == :O3_diss
+        Ip = 1.05 / 27.21138602 # O2-O bond dissociation energy, eV -> atomic units
     else
         throw(DomainError(material, "Unknown material $material"))
     end

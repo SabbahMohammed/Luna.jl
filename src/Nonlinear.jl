@@ -205,6 +205,116 @@ function (Plas::PlasmaCumtrapz)(out, Et, ρ; z=0.0)
     end
 end
 
+"Response type for cumtrapz-based dissociation polarisation, structurally identical to
+[`PlasmaCumtrapz`](@ref) but kept as a distinct type so it is not picked up by
+`Stats.default`'s `resp isa PlasmaCumtrapz` free-electron-density instrumentation.
+Represents the field energy lost to driving bond dissociation via the ADK tunnelling
+formalism, with `ionpot` interpreted as a dissociation energy rather than an ionisation
+potential."
+struct DissCumtrapz{R, EType, tType, PType}
+    ratefunc::R # the dissociation rate function
+    ionpot::Float64 # the dissociation energy (for calculation of dissociation loss)
+    rate::tType # buffer to hold the rate
+    fraction::tType # buffer to hold the dissociation fraction
+    phase::EType # buffer to hold the dissociation induced (mostly) phase modulation
+    J::EType # buffer to hold the dissociation current
+    P::EType # buffer to hold the dissociation polarisation
+    δt::Float64 # the time step
+    preionfrac::PType # the pre-dissociation fraction (Float64 or callable function of z)
+end
+
+"""
+    DissCumtrapz(t, E, ratefunc, ionpot; preionfrac=0.0)
+
+Construct the dissociation polarisation response for a field on time grid `t`
+with example electric field like `E`, a dissociation rate callable
+`ratefunc` and dissociation energy `ionpot`.
+
+See [`PlasmaCumtrapz`](@ref) for the meaning of `preionfrac`.
+"""
+function DissCumtrapz(t, E, ratefunc, ionpot; preionfrac=0.0)
+    rate = similar(t)
+    fraction = similar(t)
+    phase = similar(E)
+    J = similar(E)
+    P = similar(E)
+    if preionfrac isa Number
+        !(0.0 <= preionfrac <= 1.0) && throw(DomainError(preionfrac, "preionfrac must be between 0 and 1"))
+        if preionfrac > 0.0
+            @warn("Using preionfrac > 0.0 is not a well founded physical model. Use only after careful consideration.")
+        end
+    else  # preionfrac is a callable
+        @warn("Using z-dependent preionfrac. Ensure the function returns values between 0 and 1.")
+    end
+    return DissCumtrapz(ratefunc, ionpot, rate, fraction, phase, J, P, t[2]-t[1], preionfrac)
+end
+
+"""
+    getpreionfrac(Diss::DissCumtrapz, z)
+
+Evaluate the pre-dissociation fraction at position `z`.
+"""
+function getpreionfrac(Diss::DissCumtrapz, z)
+    if Diss.preionfrac isa Number
+        return Diss.preionfrac
+    else
+        return Diss.preionfrac(z)
+    end
+end
+
+"The dissociation response for a scalar electric field"
+function DissScalar!(Diss::DissCumtrapz, E, z=0.0)
+    Diss.ratefunc(Diss.rate, E)
+    Maths.cumtrapz!(Diss.fraction, Diss.rate, Diss.δt)
+    preionfrac_z = getpreionfrac(Diss, z)
+    @. Diss.fraction = preionfrac_z + 1 - exp(-Diss.fraction)
+    @. Diss.phase = Diss.fraction * e_ratio * E
+    Maths.cumtrapz!(Diss.J, Diss.phase, Diss.δt)
+    for ii in eachindex(E)
+        if abs(E[ii]) > 0
+            Diss.J[ii] += Diss.ionpot * Diss.rate[ii] * (1-Diss.fraction[ii])/E[ii]
+        end
+    end
+    Maths.cumtrapz!(Diss.P, Diss.J, Diss.δt)
+end
+
+"The dissociation response for a vector electric field, analogous to `PlasmaVector!`."
+function DissVector!(Diss::DissCumtrapz, E, z=0.0)
+    Ex = E[:,1]
+    Ey = E[:,2]
+    Em = @. hypot.(Ex, Ey)
+    Diss.ratefunc(Diss.rate, Em)
+    Maths.cumtrapz!(Diss.fraction, Diss.rate, Diss.δt)
+    preionfrac_z = getpreionfrac(Diss, z)
+    @. Diss.fraction = preionfrac_z + 1 - exp(-Diss.fraction)
+    @. Diss.phase = Diss.fraction * e_ratio * E
+    Maths.cumtrapz!(Diss.J, Diss.phase, Diss.δt)
+    for ii in eachindex(Em)
+        if abs(Em[ii]) > 0
+            pre = Diss.ionpot * Diss.rate[ii] * (1-Diss.fraction[ii])/Em[ii]^2
+            Diss.J[ii,1] += pre*Ex[ii]
+            Diss.J[ii,2] += pre*Ey[ii]
+        end
+    end
+    Maths.cumtrapz!(Diss.P, Diss.J, Diss.δt)
+end
+
+"Handle dissociation polarisation routing to `DissVector!` or `DissScalar!`."
+function (Diss::DissCumtrapz)(out, Et, ρ; z=0.0)
+    if ndims(Et) > 1
+        if size(Et, 2) == 1 # handle scalar case but within modal simulation
+            DissScalar!(Diss, reshape(Et, size(Et,1)), z)
+            out .+= ρ .* reshape(Diss.P, size(Et))
+        else
+            DissVector!(Diss, Et, z) # vector case
+            out .+= ρ .* Diss.P
+        end
+    else
+        DissScalar!(Diss, Et, z) # straight scalar case
+        out .+= ρ .* Diss.P
+    end
+end
+
 "Raman polarisation response type"
 abstract type RamanPolar end
 
