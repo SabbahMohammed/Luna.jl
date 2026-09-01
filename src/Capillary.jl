@@ -53,6 +53,7 @@ lossstring(::Val{true}) = "true"
 lossstring(::Val{false}) = "false"
 lossstring(loss::Real) = string(loss)
 lossstring(::Function) = "function"
+lossstring(loss::Symbol) = string(loss)
 
 mode_string(m::MarcatiliMode) = string(m.kind)*subscript(m.n)*subscript(m.m)
 radius_string(m::MarcatiliMode{<:Number, Tco, Tcl, LT}) where {Tco, Tcl, LT} = "a=$(m.a)"
@@ -95,9 +96,13 @@ Create a MarcatiliMode.
 function MarcatiliMode(a, n, m, kind, ϕ, coren, cladn; model=:full, loss=true)
     # chkzkwarg makes sure that coren and cladn take z as a keyword argument
     aeff_intg = Aeff_Jintg(n, get_unm(n, m, kind), kind)
+    # loss=:gas bypasses Modes.wraptype (Bool/Real/Function only): it selects a
+    # gas-absorption-only loss model handled directly in `neff`, not the
+    # Val{true}/Val{false}/Real/Function dispatch chain below.
+    losstype = loss === :gas ? loss : wraptype(loss)
     MarcatiliMode(a, n, m, kind, get_unm(n, m, kind), ϕ,
                    chkzkwarg(coren), chkzkwarg(cladn),
-                   model, wraptype(loss), aeff_intg)
+                   model, losstype, aeff_intg)
 end
 
 """
@@ -168,7 +173,17 @@ function neff(m::MarcatiliMode, ω; z=0)
     εcl = m.cladn(ω, z=z)^2
     εco = m.coren(ω, z=z)^2
     vn = get_vn(εcl, m.kind)
-    neff(m, ω, εco, vn, radius(m, z))
+    if m.loss === :gas
+        neff_gasonly(εco)
+    else
+        neff(m, ω, εco, vn, radius(m, z))
+    end
+end
+
+"Effective index contribution from gas absorption only (no waveguide/wall loss)."
+function neff_gasonly(εco)
+    n = sqrt(complex(εco))
+    return (real(n) < 1e-3) ? (1e-3 + im*clamp(imag(n), 0, Inf)) : n
 end
 
 # Dispatch on loss to make neff type stable
