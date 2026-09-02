@@ -139,12 +139,32 @@ function γ_QuanfuHe(A, B, C, dens)
 end
 
 """
+    γ_ozone()
+
+Density-normalised polarisability for ozone, derived from `ozone_ref_index` (a
+Kramers-Kronig fit to the MPI-Mainz ozone absorption cross-section) at the reference
+conditions the fit was made at (1 bar, 297 K). Complex-valued: ozone absorbs strongly in
+the UV (Hartley band), so unlike the other γ_* functions here this captures loss as well
+as dispersion.
+"""
+function γ_ozone()
+    nspl = ozone_ref_index()
+    dens_ref = density(:O3, 1.0, 297.0)
+    return μm -> (nspl(μm*1e-6)^2 - 1) / dens_ref
+end
+
+"""
     sellmeier_gas(material::Symbol)
 
 Return function for linear polarisability γ, i.e. susceptibility of a single particle,
 calculated from Sellmeier expansions.
 """
 function sellmeier_gas(material::Symbol)
+    if material == :O3
+        # :O3 is deliberately not in the `gas` tuple (see ref_index_fun), so it has no
+        # entry in dens_1bar_0degC; handle it before that lookup.
+        return γ_ozone()
+    end
     dens = dens_1bar_0degC[material]
     if material == :HeB
         B1 = 4977.77e-8
@@ -449,6 +469,15 @@ function ref_index_fun(material::Symbol, P=1.0, T=roomtemp; lookup=nothing)
     if material in gas
         χ1 = χ1_fun(material, P, T)
         return λ -> sqrt(1 + complex(χ1(λ)))
+    elseif material == :O3
+        # n_ref(λ) is ozone's complex refractive index at the fit's own reference
+        # conditions (1 bar, 297 K); scale the departure from vacuum by density, which is
+        # the standard dilute-gas approximation (equivalent to the gas branch above to
+        # leading order in (n-1), which is ~1e-4 here).
+        n_ref = ozone_ref_index()
+        dens_ref = density(:O3, 1.0, 297.0)
+        density_ratio = density(:O3, P, T) / dens_ref
+        return λ -> 1 + density_ratio * (n_ref(λ) - 1)
     elseif material in glass
         if isnothing(lookup)
             lookup = (material == :SiO2)
@@ -694,6 +723,8 @@ For a glass, this simply returns 1.0.
 """
 function density(material::Symbol, P=1.0, T=roomtemp)
     material in glass && return 1.0
+    material == :O3 && (material = :O2) # CoolProp has no ozone equation of state; O2's
+    # molar density is a good approximation at these near-ideal-gas conditions.
     P == 0 ? zero(P) : CoolProp.PropsSI("DMOLAR", "T", T, "P", bar*P, gas_str[material])*N_A
 end
 
@@ -706,6 +737,7 @@ dens_1atm_0degC = Dict(gi => density(gi, atm/bar, 273.15) for gi in gas)
 Calculate the pressure in bar of the `gas` at number density `density` and temperature `T`.
 """
 function pressure(gas, density, T=roomtemp)
+    gas == :O3 && (gas = :O2) # see density(); same CoolProp substitution.
     density == 0 ? zero(density) :
                    CoolProp.PropsSI("P", "T", T, "DMOLAR", density/N_A, gas_str[gas])/bar
 end
@@ -774,11 +806,14 @@ function ionisation_potential(material; unit=:SI)
     elseif material == :D2
         Ip = 0.5684 # from NIST Chemistry WebBook
     elseif material == :O2_diss
-        Ip = 5.12 / 27.21138602 # O=O bond dissociation energy, eV -> atomic units
-    elseif material == :N2_diss
-        Ip = 9.79 / 27.21138602 # N#N bond dissociation energy, eV -> atomic units
+        Ip = 15.5 / 27.21138602 # Song etl al: eV -> atomic units. Energy of the superexcited state
+        # reached via strong-field multiphoton/tunnelling excitation, not the ground-state
+        # O=O bond dissociation energy (5.12 eV) -- the latter underestimates the barrier
+        # and saturates the ADK dissociation fraction to ~1 at these field strengths.
+    elseif material == :N2_diss # P. Erman,
+        Ip = 21 / 27.21138602 # eV -> atomic units. Superexcited-state energy (see :O2_diss).
     elseif material == :O3_diss
-        Ip = 1.05 / 27.21138602 # O2-O bond dissociation energy, eV -> atomic units
+        Ip = 9.5 / 27.21138602 # eV -> atomic units. Superexcited-state energy (see :O2_diss).
     else
         throw(DomainError(material, "Unknown material $material"))
     end
@@ -922,6 +957,21 @@ function lookup_metal(material::Symbol)
     data = data_metal(material)::Array{Float64,2}
     nspl = Maths.BSpline(data[:,1], data[:,2] .+ im.*data[:,3])
     return nspl
+end
+
+"""
+    ozone_ref_index()
+
+Create a complex-valued `BSpline` interpolant for the refractive index of ozone at a
+reference density of 1 bar, 297 K, as a function of wavelength in metres. Derived from a
+Kramers-Kronig fit to the MPI-Mainz ozone absorption cross-section (originally computed on
+the `ozone` branch of this fork and recovered from that branch's pickled scipy splines;
+`src/data/ozone_ref_index.csv` is a dense native re-sampling of that fit, avoiding a
+runtime scipy/pickle dependency).
+"""
+function ozone_ref_index()
+    dat = CSV.File(joinpath(Utils.datadir(), "ozone_ref_index.csv"))
+    Maths.BSpline(dat.wavelength_m, dat.real_chi_or_n .+ im .* dat.imag_chi_or_n)
 end
 
 """
