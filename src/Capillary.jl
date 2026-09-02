@@ -174,15 +174,24 @@ function neff(m::MarcatiliMode, ω; z=0)
     εco = m.coren(ω, z=z)^2
     vn = get_vn(εcl, m.kind)
     if m.loss === :gas
-        neff_gasonly(εco)
+        neff_gasonly(εco, ω, m.unm, radius(m, z))
     else
         neff(m, ω, εco, vn, radius(m, z))
     end
 end
 
-"Effective index contribution from gas absorption only (no waveguide/wall loss)."
-function neff_gasonly(εco)
-    n = sqrt(complex(εco))
+"""
+Effective index including the Marcatili waveguide dispersion term, but with loss coming
+only from gas absorption (Im(εco)) rather than wall/confinement loss (which would add
+vn, the cladding-dependent loss factor, as in the `loss=true` branch below). Dropping the
+waveguide term entirely here (as an earlier version of this function did) removes the
+anomalous waveguide dispersion that self-compression/dispersive-wave generation in a
+hollow-core fibre depends on -- it must be kept, only its (wall-loss) imaginary
+contribution should be zeroed.
+"""
+function neff_gasonly(εco, ω, unm, a)
+    k = ω/c
+    n = sqrt(complex(εco - (unm/(k*a))^2))
     return (real(n) < 1e-3) ? (1e-3 + im*clamp(imag(n), 0, Inf)) : n
 end
 
