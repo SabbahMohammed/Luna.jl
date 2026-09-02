@@ -669,6 +669,8 @@ function γ3_gas(material::Symbol; source=nothing)
             source = :Zahedpour
         elseif material in (:N2O,)
             source = :Wahlstrand
+        elseif material in (:O3,)
+            source = :ApproxAsO2
         else
             error("no default γ3 source for material: $material")
         end
@@ -723,6 +725,23 @@ function γ3_gas(material::Symbol; source=nothing)
             return 4/3*ε_0*c*n0^2/ρ * n2
         else
             throw(DomainError(material, "Wahlstrand model does not include $material"))
+        end
+    elseif source == :ApproxAsO2
+        if material == :O3
+            # No measured χ3/n2 data exists for ozone. The paper this simulation
+            # reproduces explicitly assumes ozone's nonlinear contribution is negligible
+            # given its low (<4%) local concentration; approximate with O2's measured n2
+            # (same element, comparable polarisability) as an order-of-magnitude
+            # stand-in rather than an unjustified fabricated value.
+            # real(): O3's refractive index is complex (it absorbs), but the Kerr
+            # coefficient itself should stay real -- only the plasma/dissociation
+            # responses carry the absorptive part.
+            n0 = real(ref_index(:O3, 800e-9, atm/bar, roomtemp))
+            ρ = density(:O3, atm/bar, roomtemp)
+            n2 = 8.1e-24 # O2's Zahedpour value, Table 1 in [5]
+            return 4/3*ε_0*c*n0^2/ρ * n2
+        else
+            throw(DomainError(material, "ApproxAsO2 model does not include $material"))
         end
     else
         throw(DomainError(source, "Unkown γ3 model $source"))
@@ -845,6 +864,9 @@ function ionisation_potential(material; unit=:SI)
         Ip = 0.4636
     elseif material == :N2O
         Ip = 0.474
+    elseif material == :O3
+        Ip = 12.530 / 27.21138602 # eV -> a.u., adiabatic IE, NIST Chemistry WebBook
+        # (https://webbook.nist.gov, CID 10028156); vertical IE is 12.730 eV.
     elseif material == :SF6
         Ip = 0.5
     elseif material == :D2
@@ -894,6 +916,12 @@ function quantum_numbers(material)
         return 2, 0, 0.53 # https://doi.org/10.1016/S0030-4018(99)00113-3
     elseif material == :N2
         return 2, 0, 0.9 # https://doi.org/10.1016/S0030-4018(99)00113-3
+    elseif material in (:N2O, :O3)
+        # No dedicated molecular-ADK/PPT fit exists in the literature for N2O or O3 (unlike
+        # N2/O2's Talebpour et al. fit above): l=0 matches the convention used there, Z=1 is
+        # the uncorrected residual charge (no molecule-specific empirical tuning available).
+        # `n` (first return value) is unused by every caller of this function.
+        return 2, 0, 1
     else
         throw(DomainError(material, "Unknown material $material"))
     end
