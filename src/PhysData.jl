@@ -139,13 +139,54 @@ function γ_QuanfuHe(A, B, C, dens)
 end
 
 """
+    ref_index_o3_analytical_reference(λ)
+
+Analytical fit to ozone's complex refractive index at reference conditions (1 bar, 297 K),
+as a function of wavelength `λ` in metres. Real part: derivative of a Lorentzian centred on
+the Hartley band (255 nm) for the anomalous-dispersion feature, plus a smooth offset and an
+exponential tail. Imaginary part: two Gaussians for the Hartley (255 nm) and Chappuis
+(600 nm) absorption bands. Primary source of ozone dispersion/loss -- smooth (C^∞) and so,
+unlike `ozone_ref_index` (a Kramers-Kronig fit resampled from measured cross-section data),
+well-behaved under the repeated differentiation GVD and higher-order dispersion require.
+"""
+function ref_index_o3_analytical_reference(λ)
+    A, μ, γ, A_tail, λ_tail, offset =
+        -8.8e-19, 255e-9, 39e-9, 2e-4, 100e-9, 0.00033
+
+    x = λ - μ
+    lor = -A * 2γ * x / (x^2 + γ^2)^2
+    tail = λ > λ_tail ? A_tail * exp(-(λ - λ_tail) / 2000e-9) : 0.0
+    real_part = lor + offset + tail
+
+    A1, μ1, σ1 = 0.58e-3, 255e-9, 18e-9
+    A2, μ2, σ2 = 7e-7, 600e-9, 55e-9
+    imag_part = (A1 * exp(-((λ - μ1)^2) / (2σ1^2))
+                 + A2 * exp(-((λ - μ2)^2) / (2σ2^2)))
+
+    return (1.0 + real_part) + 1im * imag_part
+end
+
+"""
+    γ_ozone_analytical()
+
+Density-normalised polarisability for ozone, derived from
+`ref_index_o3_analytical_reference` -- the primary (smooth, analytical) ozone dispersion
+model. See `γ_ozone` for the Kramers-Kronig-fit-based alternative, kept for testing.
+"""
+function γ_ozone_analytical()
+    dens_ref = density(:O3, 1.0, 297.0)
+    return μm -> (ref_index_o3_analytical_reference(μm*1e-6)^2 - 1) / dens_ref
+end
+
+"""
     γ_ozone()
 
 Density-normalised polarisability for ozone, derived from `ozone_ref_index` (a
 Kramers-Kronig fit to the MPI-Mainz ozone absorption cross-section) at the reference
 conditions the fit was made at (1 bar, 297 K). Complex-valued: ozone absorbs strongly in
 the UV (Hartley band), so unlike the other γ_* functions here this captures loss as well
-as dispersion.
+as dispersion. Kept for testing/validation against `γ_ozone_analytical`, the primary model
+actually used by `sellmeier_gas(:O3)`.
 """
 function γ_ozone()
     nspl = ozone_ref_index()
@@ -163,7 +204,7 @@ function sellmeier_gas(material::Symbol)
     if material == :O3
         # :O3 is deliberately not in the `gas` tuple (see ref_index_fun), so it has no
         # entry in dens_1bar_0degC; handle it before that lookup.
-        return γ_ozone()
+        return γ_ozone_analytical()
     end
     dens = dens_1bar_0degC[material]
     if material == :HeB
@@ -473,8 +514,11 @@ function ref_index_fun(material::Symbol, P=1.0, T=roomtemp; lookup=nothing)
         # n_ref(λ) is ozone's complex refractive index at the fit's own reference
         # conditions (1 bar, 297 K); scale the departure from vacuum by density, which is
         # the standard dilute-gas approximation (equivalent to the gas branch above to
-        # leading order in (n-1), which is ~1e-4 here).
-        n_ref = ozone_ref_index()
+        # leading order in (n-1), which is ~1e-4 here). Uses the analytical fit
+        # (ref_index_o3_analytical_reference) as the primary model, since it's smooth
+        # under differentiation, unlike ozone_ref_index's resampled Kramers-Kronig spline
+        # (kept for tests -- swap n_ref below to compare).
+        n_ref = ref_index_o3_analytical_reference
         dens_ref = density(:O3, 1.0, 297.0)
         density_ratio = density(:O3, P, T) / dens_ref
         return λ -> 1 + density_ratio * (n_ref(λ) - 1)
