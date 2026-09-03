@@ -879,10 +879,14 @@ function ionisation_potential(material; unit=:SI)
     elseif material == :N2_diss # P. Erman,
         Ip = 21 / 27.21138602 # eV -> atomic units. Superexcited-state energy (see :O2_diss).
     elseif material == :O3_diss
-        Ip = 9.5 / 27.21138602 # eV -> atomic units, paper's own value for ozone's ADK
-        # dissociation energy. Not :O3's real ionisation potential (12.53 eV, a
-        # different quantity used elsewhere for actual ionisation) -- do not conflate
-        # the two, they've been swapped here before.
+        # Deliberately equal to :O3's real ionisation potential above (not the
+        # paper's separate 9.5 eV ADK-fit dissociation energy): O3 is modelled as
+        # having NO ionisation channel of its own -- PropAir.jl gives it only a
+        # DissCumtrapz response, on the assumption that ionised ozone dissociates
+        # before any free-electron/plasma response would matter, so the same
+        # strong-field process that would have been "ionisation" is instead
+        # costed here, as dissociation, at ionisation's own energy.
+        Ip = 12.53 / 27.21138602 # eV -> atomic units
     else
         throw(DomainError(material, "Unknown material $material"))
     end
