@@ -76,6 +76,17 @@ result near this range with real suspicion until cross-checked.
 
 **Fixed this session, most recent first (see git log for full detail —
 this is the "why", not a duplicate of commit messages):**
+- `RunMonitor` now also writes the LAST pulse's full `lunaoutput` (every z,
+  not just `zslices`) to `<path>_last.jld2` on the same throttled cadence as
+  its lightweight history, overwriting each time —
+  `Monitor.load_propagation(path)` reconstructs a real, working
+  `Luna.Output.MemoryOutput` from it, from any process, while the run is
+  still going. Before this there was no way to get a true
+  `Luna.Plotting.prop_2D` for a long run except from a still-alive process's
+  in-memory state; the lightweight history was never enough (no full field).
+  `examples/plot_last_propagation.jl` is the standalone script for it.
+  **A `he_o2.jl` run started before this landed won't have `_last.jld2`** —
+  only runs started after this commit do.
 - `Monitor` (the live-run plotter) recorded the O₃(z) profile *after* a
   pulse's chemistry was applied, but the spectrum it paired that with was
   computed *before* — a one-pulse-stale mismatch. Given the sensitivity
@@ -138,10 +149,17 @@ this is the "why", not a duplicate of commit messages):**
   blocking. `examples/watch_run.jl` tails it.
 
 **Concretely next, in rough priority order:**
-1. Re-run `examples/he_o2.jl` for a while with the Monitor-timing fix in
-   place and see whether the RDW-relocation behaviour now shows up (or
-   doesn't, which would itself be informative given how the standalone
-   localized-profile test behaved — see `examples/o3_localization_check.jl`).
+1. There was a `he_o2.jl` run in progress (user-run, outside any assistant
+   session) as of this writing, started **before** the Monitor-timing fix,
+   the O₃-ionisation-removal change, and `save_full`/`load_propagation` all
+   landed — its `examples/he_o2_monitor.jld2`/`.png` reflect the *old*
+   physics and won't have a `_last.jld2`. Don't treat that run's numbers as
+   validating the current code. Once it's done (or a fresh one is started),
+   check whether the RDW-relocation behaviour now shows up in the monitor
+   plot (or doesn't, which would itself be informative given how the
+   standalone localized-profile test behaved — see
+   `examples/o3_localization_check.jl`), and use
+   `examples/plot_last_propagation.jl` to get a real `prop_2D` from it.
 2. Get real `M_efficiency`/`D_scale` values for He (literature third-body
    efficiency and diffusivity), or at least bound how much they matter.
 3. Run `uppe_trigger_validation.jl` and record the actual convergence
