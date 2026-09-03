@@ -879,7 +879,10 @@ function ionisation_potential(material; unit=:SI)
     elseif material == :N2_diss # P. Erman,
         Ip = 21 / 27.21138602 # eV -> atomic units. Superexcited-state energy (see :O2_diss).
     elseif material == :O3_diss
-        Ip = 9.5 / 27.21138602 # eV -> atomic units. Superexcited-state energy (see :O2_diss).
+        Ip = 9.5 / 27.21138602 # eV -> atomic units, paper's own value for ozone's ADK
+        # dissociation energy. Not :O3's real ionisation potential (12.53 eV, a
+        # different quantity used elsewhere for actual ionisation) -- do not conflate
+        # the two, they've been swapped here before.
     else
         throw(DomainError(material, "Unknown material $material"))
     end

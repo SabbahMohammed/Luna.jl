@@ -268,8 +268,14 @@ function DissScalar!(Diss::DissCumtrapz, E, z=0.0)
     Maths.cumtrapz!(Diss.fraction, Diss.rate, Diss.δt)
     preionfrac_z = getpreionfrac(Diss, z)
     @. Diss.fraction = preionfrac_z + 1 - exp(-Diss.fraction)
-    @. Diss.phase = Diss.fraction * e_ratio * E
-    Maths.cumtrapz!(Diss.J, Diss.phase, Diss.δt)
+    # NOTE: no free-electron (Drude) current here, unlike `PlasmaCumtrapz`.
+    # Dissociation splits a molecule into neutral fragments: it liberates no
+    # charge, so there is no plasma current and no plasma phase modulation /
+    # blue shift. The only field effect is the energy paid to break the bond,
+    # which is the loss term below. (`PlasmaCumtrapz` would add
+    # `fraction * e_ratio * E` here; carrying that over to dissociation would
+    # invent a plasma that does not exist.)
+    fill!(Diss.J, 0)
     for ii in eachindex(E)
         if abs(E[ii]) > 0
             Diss.J[ii] += Diss.ionpot * Diss.rate[ii] * (1-Diss.fraction[ii])/E[ii]
@@ -287,8 +293,8 @@ function DissVector!(Diss::DissCumtrapz, E, z=0.0)
     Maths.cumtrapz!(Diss.fraction, Diss.rate, Diss.δt)
     preionfrac_z = getpreionfrac(Diss, z)
     @. Diss.fraction = preionfrac_z + 1 - exp(-Diss.fraction)
-    @. Diss.phase = Diss.fraction * e_ratio * E
-    Maths.cumtrapz!(Diss.J, Diss.phase, Diss.δt)
+    # No free-electron current — see the note in `DissScalar!`.
+    fill!(Diss.J, 0)
     for ii in eachindex(Em)
         if abs(Em[ii]) > 0
             pre = Diss.ionpot * Diss.rate[ii] * (1-Diss.fraction[ii])/Em[ii]^2
