@@ -110,7 +110,16 @@ this is the "why", not a duplicate of commit messages):**
   end, producing negative partial pressures that make CoolProp throw).
   **Everything previously concluded about localized-vs-uniform ozone is void.**
   With the fix the real localized profile moves the RDW 250 → 312 nm; it had
-  appeared not to move it at all. Costs ~4x per solve.
+  appeared not to move it at all.
+- **Made that affordable.** The naive switch cost ~3x per solve, because every
+  frequency point at every z step re-entered the Sellmeier stack. Since
+  `n(λ,z) = sqrt(1 + Σᵢ γᵢ(λ)·ρᵢ(z))` has all its wavelength dependence in the
+  z-independent `γᵢ`, `gas_mixture` now returns a tabulatable `GasMixtureIndex`
+  struct, `neff_β_grid` precomputes `γᵢ` on the frequency grid, and `ρᵢ(z)`
+  comes from a `densityspline` rather than CoolProp (whose root-find was 60% of
+  the whole linop at ~76 µs a call). Net: ~12 s per propagation vs ~9 s for the
+  old incorrect const linop — correctness costs ~35%, not ~200%. Tabulated
+  `neff` matches the generic path to 2.2e-16.
 - `RunMonitor` now also writes the LAST pulse's full `lunaoutput` (every z,
   not just `zslices`) to `<path>_last.jld2` on the same throttled cadence as
   its lightweight history, overwriting each time —
