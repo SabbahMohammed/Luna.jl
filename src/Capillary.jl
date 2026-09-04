@@ -5,7 +5,7 @@ import StaticArrays: SVector
 import Cubature: hquadrature
 using Reexport
 @reexport using Luna.Modes
-import Luna: Maths, Grid
+import Luna: Maths, Grid, PhysData
 import Luna.PhysData: c, ε_0, μ_0, ref_index_fun, roomtemp, densityspline, sellmeier_gas
 import Luna.Modes: AbstractMode, dimlimits, neff, field, Aeff, N, modeinfo, wraptype
 import Luna.LinearOps: make_linop, conj_clamp, neff_grid, neff_β_grid
@@ -453,33 +453,100 @@ function gradient(gas, Z, P; T=roomtemp)
 end
 
 """
-    gas_mixture(gases, press, L)
+    GasMixtureIndex(gases, fracs, T)
 
-Convenience function to create density and core index profiles for a gas mixture
-with independent, changing gas densities along z. `gases` is a `Tuple` of gas
-identifiers (`Symbol`s), `press` is a `Tuple` of equal length of pressure profiles
-(each a `Vector` of pressures along z), and `L` is the fibre length.
+Core refractive index of a gas mixture whose composition varies along `z`,
+callable as `gm(ω; z)` like any other `coren`.
+
+Exists as a struct rather than a closure so that it can be *tabulated*: the
+mixture index is
+
+    n(λ, z) = sqrt(1 + Σᵢ γᵢ(λ) · ρᵢ(z))
+
+(see `PhysData.ref_index_fun(::NTuple{N,Symbol}, ::NTuple{N,Number})`, whose
+result this reproduces exactly), in which the expensive wavelength-dependent
+part `γᵢ` — Sellmeier expansions, and for O₃ a complex Hartley-band fit — is
+completely independent of `z`. Only the `N` scalar densities move. Keeping
+`gases`/`fracs`/`γs` reachable lets `neff_β_grid` below precompute `γᵢ` once
+per frequency grid and reduce each subsequent z to `N` multiply-adds per
+frequency point. Rebuilding the whole Sellmeier closure per (ω, z) pair, as
+the closure form did, is what made a z-dependent linop unaffordable.
+
+`ρᵢ(z)` goes through a `PhysData.densityspline` rather than `PhysData.density`:
+the latter is a CoolProp root-find costing ~75 µs, which dominated everything
+else in the linop when called once per z step. `dens` and `lastz`/`lastP` are
+caches, not state.
 """
-function gas_mixture(gases, press, L)
-    fracs = create_spline_pressure_function(press, L)
-    # `ref_index_fun` builds a whole Sellmeier closure over the mixture, which is
-    # far too expensive to redo for every (ω, z) pair -- and with a z-dependent
-    # linop (`LinearOps.make_linop`) `coren` is called once per frequency point
-    # per z step. That loop sweeps all ω at fixed z, so caching the most recent
-    # z collapses the rebuild to once per step. `nfun` is seeded with a real
-    # closure rather than left `nothing`, so the Ref stays concretely typed.
-    nfun = Ref(ref_index_fun(gases, Tuple(s(0.0) for s in fracs)))
-    lastz = Ref(NaN)
-    coren = let gases=gases, fracs=fracs, nfun=nfun, lastz=lastz
-        function coren(ω; z)
-            if z != lastz[]
-                nfun[] = ref_index_fun(gases, Tuple(s(z) for s in fracs))
-                lastz[] = z
-            end
-            nfun[](wlfreq(ω))
+struct GasMixtureIndex{N, TF, TG, TS}
+    gases::NTuple{N, Symbol}
+    fracs::TF               # partial pressure [bar] vs z, one guarded spline per gas
+    γs::TG                  # per-particle polarisability vs λ [µm], one per gas
+    ρspl::Vector{TS}        # number density vs partial pressure, one per gas
+    Pmax::Vector{Float64}   # upper limit each ρspl was built to
+    T::Float64
+    dens::Vector{Float64}   # cache: number density per gas at `lastz`
+    lastP::Vector{Float64}  # cache: partial pressure each `dens` entry was computed at
+    lastz::Base.RefValue{Float64}
+end
+
+function GasMixtureIndex(gases::NTuple{N, Symbol}, fracs, press, T=roomtemp) where N
+    γs = Tuple(sellmeier_gas(gi) for gi in gases)
+    # Headroom above the tabulated maximum: `fracs` are cubic splines through
+    # `press` and may overshoot slightly between knots.
+    Pmax = [1.05*maximum(Pi) + 1e-3 for Pi in press]
+    ρspl = [densityspline(gi; Pmax=Pi, T=T) for (gi, Pi) in zip(gases, Pmax)]
+    GasMixtureIndex{N, typeof(fracs), typeof(γs), eltype(ρspl)}(
+        gases, fracs, γs, ρspl, Pmax, T, fill(NaN, N), fill(NaN, N), Ref(NaN))
+end
+
+"""
+    densities!(gm, z)
+
+Refresh `gm.dens` for position `z`, and return it. Skips the whole update when
+`z` is unchanged (the linop sweeps every frequency at fixed `z`), and skips the
+CoolProp call for any individual gas whose partial pressure is unchanged — which
+covers every buffer gas in a fill where only one species varies along the fibre.
+"""
+@inline function densities!(gm::GasMixtureIndex{N}, z) where N
+    z == gm.lastz[] && return gm.dens
+    @inbounds for i in 1:N
+        P = clamp(gm.fracs[i](z), 0.0, gm.Pmax[i])
+        if P != gm.lastP[i]
+            gm.lastP[i] = P
+            gm.dens[i] = gm.ρspl[i](P)
         end
     end
-    return coren, fracs
+    gm.lastz[] = z
+    gm.dens
+end
+
+# Unrolled over the heterogeneous γ tuple: a `for` loop over it would be type
+# unstable and box every term.
+@inline _mixχ(γs::Tuple{}, dens, i, λμm) = complex(0.0)
+@inline _mixχ(γs::Tuple, dens, i, λμm) =
+    @inbounds dens[i]*first(γs)(λμm) + _mixχ(Base.tail(γs), dens, i+1, λμm)
+
+function (gm::GasMixtureIndex)(ω; z)
+    dens = densities!(gm, z)
+    sqrt(1 + _mixχ(gm.γs, dens, 1, wlfreq(ω)*1e6))
+end
+
+"""
+    gas_mixture(gases, press, L)
+
+Create core index and density profiles for a gas mixture with independent,
+changing gas densities along z. `gases` is a `Tuple` of gas identifiers
+(`Symbol`s), `press` is a `Tuple` of equal length of pressure profiles (each a
+`Vector` of pressures along z, sampled on `range(0, L, length=length(press[i]))`),
+and `L` is the fibre length.
+
+Returns `(coren, fracs)`: a [`GasMixtureIndex`](@ref) usable as a
+`MarcatiliMode`'s core index, and the tuple of partial-pressure functions it was
+built from.
+"""
+function gas_mixture(gases, press, L; T=roomtemp)
+    fracs = create_spline_pressure_function(press, L)
+    GasMixtureIndex(Tuple(gases), fracs, press, T), fracs
 end
 
 function create_spline_pressure_function(pressures, L)
@@ -530,6 +597,53 @@ function neff_β_grid(grid,
         _neff(iω; z) = neff(mode, mode.coren(ω[iω], z=z)^2, nwg[iω], ω[iω])
     end
     _β = let nwg=nwg, ω=grid.ω, _neff=_neff
+        _β(iω; z) = ω[iω]/c*real(_neff(iω; z=z))
+    end
+    _neff, _β
+end
+
+"""
+    neff_β_grid(grid, mode::MarcatiliMode{<:Number, <:GasMixtureIndex}, λ0)
+
+Fast path for a capillary filled with a `z`-varying gas mixture. On top of
+caching the waveguide term (as the generic method above does), this tabulates
+each gas's polarisability `γᵢ(λ)` on the frequency grid, since it does not
+depend on `z`. Each subsequent evaluation is then `N` multiply-adds and no
+Sellmeier/spline work at all, and the core *permittivity* is assembled
+directly — the generic path takes a square root inside `coren` only for the
+caller to square it again.
+
+This is what makes `LinearOps.make_linop` (a z-dependent linop) affordable for
+a mixture; without it, the whole Sellmeier stack is re-entered for every
+frequency point at every z step.
+"""
+function neff_β_grid(grid,
+                   mode::MarcatiliMode{<:Number, <:GasMixtureIndex, Tcl, LT},
+                   λ0) where {Tcl, LT}
+    gm = mode.coren
+    sidcs = (1:length(grid.ω))[grid.sidx]
+    nwg = complex(zero(grid.ω))
+    for iω in sidcs
+        nwg[iω] = neff_wg(mode, grid.ω[iω]; z=0)
+    end
+    # γtab[i, iω] = γᵢ(λ(ω)); z-independent, so built once. Gas-major, so the
+    # N values combined at one frequency are contiguous -- this is swept once
+    # per frequency per z step, which is the hottest loop in the solver.
+    γtab = zeros(ComplexF64, length(gm.gases), length(grid.ω))
+    for iω in sidcs, (i, γ) in enumerate(gm.γs)
+        γtab[i, iω] = γ(wlfreq(grid.ω[iω])*1e6)
+    end
+    _neff = let γtab=γtab, nwg=nwg, ω=grid.ω, mode=mode, gm=gm, ng=length(gm.gases)
+        function _neff(iω; z)
+            dens = densities!(gm, z)
+            χ = zero(ComplexF64)
+            @inbounds for i in 1:ng
+                χ += dens[i]*γtab[i, iω]
+            end
+            neff(mode, 1 + χ, nwg[iω], ω[iω])
+        end
+    end
+    _β = let ω=grid.ω, _neff=_neff
         _β(iω; z) = ω[iω]/c*real(_neff(iω; z=z))
     end
     _neff, _β
