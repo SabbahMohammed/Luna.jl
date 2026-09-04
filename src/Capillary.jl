@@ -324,6 +324,28 @@ function neff(m::MarcatiliMode{Ta, Tco, Tcl, LT}, εco, nwg, ω
     return real(n) + im*s*imag(n)
 end
 
+#= m.loss = :gas -- gas absorption only (Im(εco)), no wall/confinement loss.
+   The generic `neff(m::MarcatiliMode, ω; z)` above routes this to
+   `neff_gasonly`, but LinearOps.make_linop needs the split
+   `neff_wg` / `neff(m, εco, nwg, ω)` form so the z-independent waveguide term
+   can be cached across z steps. Without these two methods a `loss=:gas` mode
+   can ONLY be used with make_const_linop -- i.e. with dispersion frozen at
+   z=0 -- which is silently wrong for any z-varying gas fill.
+
+   These mirror `neff_gasonly` exactly: the waveguide term is the real
+   Marcatili (unm/ka)^2 with no cladding vn factor, and `model` is not
+   consulted, matching neff_gasonly's unconditional :full form. =#
+function neff_wg(m::MarcatiliMode{Ta, Tco, Tcl, Symbol}, ω; z=0) where {Ta, Tcl, Tco}
+    m.loss === :gas || error("unknown Symbol loss $(m.loss); expected :gas")
+    k = ω/c
+    (m.unm/(k*radius(m, z)))^2
+end
+
+function neff(m::MarcatiliMode{Ta, Tco, Tcl, Symbol}, εco, nwg, ω) where {Ta, Tcl, Tco}
+    n = sqrt(complex(εco - nwg))
+    (real(n) < 1e-3) ? (1e-3 + im*clamp(imag(n), 0, Inf)) : n
+end
+
 function get_vn(εcl, kind)
     if kind == :HE
         (εcl + 1)/(2*sqrt(complex(εcl - 1)))
@@ -440,7 +462,23 @@ identifiers (`Symbol`s), `press` is a `Tuple` of equal length of pressure profil
 """
 function gas_mixture(gases, press, L)
     fracs = create_spline_pressure_function(press, L)
-    coren = (ω; z) -> ref_index_fun(gases, Tuple(s(z) for s in fracs))(wlfreq(ω))
+    # `ref_index_fun` builds a whole Sellmeier closure over the mixture, which is
+    # far too expensive to redo for every (ω, z) pair -- and with a z-dependent
+    # linop (`LinearOps.make_linop`) `coren` is called once per frequency point
+    # per z step. That loop sweeps all ω at fixed z, so caching the most recent
+    # z collapses the rebuild to once per step. `nfun` is seeded with a real
+    # closure rather than left `nothing`, so the Ref stays concretely typed.
+    nfun = Ref(ref_index_fun(gases, Tuple(s(0.0) for s in fracs)))
+    lastz = Ref(NaN)
+    coren = let gases=gases, fracs=fracs, nfun=nfun, lastz=lastz
+        function coren(ω; z)
+            if z != lastz[]
+                nfun[] = ref_index_fun(gases, Tuple(s(z) for s in fracs))
+                lastz[] = z
+            end
+            nfun[](wlfreq(ω))
+        end
+    end
     return coren, fracs
 end
 
@@ -451,7 +489,27 @@ function create_spline_pressure_function(pressures, L)
     spline_functions = []
     for i in 1:length(pressures)
         spline = Maths.CSpline(z, pressures[i])
-        push!(spline_functions, spline)
+        # Guard the spline against being asked for a composition that does not
+        # exist. Two distinct failures, both real:
+        #
+        #  - z outside [0, L]. A z-dependent linop is evaluated wherever the
+        #    adaptive stepper probes, which includes points past the fibre end,
+        #    and a cubic spline extrapolates cubically: a sharply-peaked profile
+        #    (chemistry-produced ozone, say) swings to large NEGATIVE partial
+        #    pressure within a few mm of the end, and `PhysData.density` then
+        #    hands CoolProp a negative pressure and throws. Clamping z holds the
+        #    end composition outside the fibre, which is the only meaningful
+        #    reading of "outside".
+        #  - undershoot between knots. A cubic through a sharp peak can dip
+        #    slightly below zero even in range; a partial pressure cannot.
+        #
+        # `LupoAirOsc`'s densityfun already clamped the value for exactly this
+        # reason; doing it here covers the refractive-index path too, which is
+        # what actually crashed.
+        guarded = let spline=spline, L=L
+            z -> max(spline(clamp(z, 0.0, L)), 0.0)
+        end
+        push!(spline_functions, guarded)
     end
 
     return Tuple(spline_functions)
