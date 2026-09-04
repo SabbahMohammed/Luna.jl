@@ -58,24 +58,59 @@ question itself has not been touched.
   propagation (N₂/O₂ *and* He/O₂), confirmed against a pristine
   pre-session Luna baseline.
 - O₃'s dispersion (real + imaginary refractive index) is genuinely wired into
-  the propagation, not just present in `PhysData` — confirmed by running
-  matched propagations with/without ozone and watching the spectrum change.
-  See `examples/o3_dispersion_check.jl`.
+  the propagation, not just present in `PhysData`, **and is now applied along
+  z rather than frozen at the fibre entrance** — see the linop fix below,
+  which is the most important thing in this file. Confirmed by matched
+  propagations with/without ozone (`examples/o3_dispersion_check.jl`) and by
+  the localized-vs-uniform comparison (`examples/o3_localization_check.jl`).
 - σ(Hartley peak) matches the literature cross-section to 0.2%; Φ(O¹D)
   branching at the peak matches literature (~0.9).
 - Atom conservation in the O₂/O₃ photolysis bookkeeping (`apply_lunaion`) is
   now verified tight (was silently destroying O atoms every pulse before).
 
 **Load-bearing finding, not yet fully chased down:** the propagation is
-*extremely* sensitive to O₃ density near some threshold. A **uniform** 2% O₃
-fill doesn't fade the RDW in place — it **relocates the entire band**
-(~250 nm → ~310-320 nm), a phase-matching (real-index) effect, not just
-Hartley absorption. This means small errors in O₃ bookkeeping can flip
-qualitative behaviour, not just shift numbers slightly. Treat any O₃-density
-result near this range with real suspicion until cross-checked.
+*extremely* sensitive to O₃ density near some threshold. A 2% O₃ fill doesn't
+fade the RDW in place — it **relocates the entire band** (~250 nm →
+~310-320 nm), a phase-matching (real-index) effect, not just Hartley
+absorption. This means small errors in O₃ bookkeeping can flip qualitative
+behaviour, not just shift numbers slightly. Treat any O₃-density result near
+this range with real suspicion until cross-checked.
+
+**Cautionary tale, worth reading before trusting any O₃ result:** for most of
+this session the answer to "why doesn't the real run's RDW shift, when a
+uniform fill at lower density shifts it dramatically?" was pursued as
+*physics* — localization, O₂ depletion, spectral downsampling, Monitor
+timing — and a confident, wrong conclusion ("localization is the whole
+story") was reached and written down. The actual cause was the const-linop
+bug below: an infrastructure defect that only manifests for a NON-UNIFORM
+fill, which is exactly why every uniform control case looked fine and
+appeared to corroborate the wrong story. The lesson to carry: when a
+comparison isolates "localized vs uniform" and the localized case is the odd
+one out, suspect the code path that only the localized case exercises before
+inventing physics to explain it.
 
 **Fixed this session, most recent first (see git log for full detail —
 this is the "why", not a duplicate of commit messages):**
+- **The linear operator was frozen at z=0** (`PropAir.jl`, Luna
+  `Capillary.jl`). `setup_propair` used `LinearOps.make_const_linop`, which
+  evaluates `Modes.β`/`Modes.α` once with no `z` kwarg and whose `βfun!`
+  ignores z — so every propagation ran the whole 22 cm with the dispersion
+  AND the loss of the mixture at the fibre entrance. Uniform fills are exact
+  under that, which is why the test cases never caught it. Chemistry-produced
+  ozone is a narrow bump at z ~ 10 cm whose fraction at z=0 is ~1e-34, so its
+  refractive index — the real part that moves RDW phase-matching and the
+  imaginary part that IS the Hartley band — was discarded in full; only the
+  nonlinear polarisation, via `densityfun(z)`, ever saw it. Measured gap at
+  the ozone peak: 8233 rad/m. Now `make_linop`. Switching required three
+  fixes in Luna's `Capillary.jl`: cached `neff_wg`/`neff` methods for
+  `loss=:gas` (which had none, so `make_linop` was a hard MethodError), a
+  per-z cache in `gas_mixture`'s `coren` (it rebuilt the whole Sellmeier
+  closure per (ω,z) pair), and clamping the pressure splines' z into [0, L]
+  (they extrapolate cubically, and the adaptive stepper probes past the fibre
+  end, producing negative partial pressures that make CoolProp throw).
+  **Everything previously concluded about localized-vs-uniform ozone is void.**
+  With the fix the real localized profile moves the RDW 250 → 312 nm; it had
+  appeared not to move it at all. Costs ~4x per solve.
 - `RunMonitor` now also writes the LAST pulse's full `lunaoutput` (every z,
   not just `zslices`) to `<path>_last.jld2` on the same throttled cadence as
   its lightweight history, overwriting each time —
