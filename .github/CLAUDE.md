@@ -291,6 +291,42 @@ Dropbox `PhD/Ozone paper/images/side/`.
   model. No switch, just steady titration by a small standing NOx level.
   Julia buffers stdout to a file, so a background run's log lags the run by
   many minutes — judge progress from the Monitor PNG mtime, not the log.
+- **The propagation already absorbs the RDW — `attenuate` is a frozen-optics
+  correction only.** Luna's ozone index is complex
+  (`PhysData.ref_index_o3_analytical_reference`: two Gaussians in the imaginary
+  part, Hartley 255 nm and Chappuis 600 nm), it reaches the linop through
+  `sellmeier_gas(:O3)` → `γ_ozone_analytical` → the mixture index, and since the
+  const-linop fix that index is rebuilt per z. Converting κ(λ) to a
+  cross-section, σ = 2ωκ/c per unit density:
+
+  | λ (nm) | 230 | 255 | 268 | 280 | 300 | 320 |
+  |---|---|---|---|---|---|---|
+  | σ (1e-18 cm²) | 4.95 | 11.7 | 8.59 | 4.07 | 0.438 | 0.0138 |
+
+  which is the literature Hartley band (1.15e-17 cm² at the peak) to 2 %. So
+  with live optics the RDW is absorbed inside the UPPE solve, and
+  `apply_photochem(...; attenuate=true)` would double-count — it is correct
+  ONLY for the frozen driver, whose single ozone-free solve would otherwise
+  apply unabsorbed UV to the photochemistry.
+- **Mistake in the frozen driver's readout (results above still stand):** it used
+  σ(255 nm) = 1.15e-17 cm² for a band at 268–273 nm, where σ is 8.6e-18 — a 34 %
+  overstatement of the absorption. Both runs were opaque by orders of magnitude,
+  so no conclusion changes, but a wavelength-resolved readout is the right form.
+  `examples/oscillation/air_1d_live.jl` avoids the issue entirely by reading
+  `Monitor.uvenergy`, the UV energy that actually leaves the fibre.
+- **The 1-D solver is ~6x faster (2026-09-07).** Profiling 10 kicks showed ~80 %
+  of the time in VoronoiFVM's `eval_rhs!`, which re-assembles the full Jacobian
+  with dual numbers on every call (0.89 ms for 11 × 201 unknowns) and then keeps
+  only the residual; a Rosenbrock step makes ~9 such calls.
+  `ReactionDiffusion.FastRHS` evaluates the same discretisation directly in
+  ~4 µs (agreement 1e-17 relative, and it is now a package test). Jacobian,
+  sparsity and mass matrix still come from VoronoiFVM. Wall time per 10 kicks:
+  24.7 s baseline → 6.7 s (same tolerances, results to 3e-10) → 3.9 s at
+  reltol 1e-4 / abstol 1e-10. A 100 s run is ~40 min instead of 4.3 h.
+  New kwargs `rd_alg`, `rd_reltol`, `rd_abstol`, `rd_fast_rhs`; all defaults
+  reproduce the old behaviour. **BDF integrators (FBDF, QNDF, KenCarp47) all die
+  immediately with `DtLessThanMin`** on this penalty-Dirichlet mass-matrix form
+  (the 1e30 penalty rows), so it is Rosenbrock only until the BCs change.
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
   counted in `Rates.jl` (each channel carried the total rate).
 
