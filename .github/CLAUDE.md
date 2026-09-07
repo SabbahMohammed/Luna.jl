@@ -67,6 +67,71 @@ question itself has not been touched.
   branching at the peak matches literature (~0.9).
 - Atom conservation in the O₂/O₃ photolysis bookkeeping (`apply_lunaion`) is
   now verified tight (was silently destroying O atoms every pulse before).
+  Re-checked end-to-end on a live run including the boundary: over 0 → 0.332 s
+  the total O budget (`O + O¹D + 3·O₃ + NO + 2·NO₂ + 3·NO₃ + N₂O + 2·O₂`,
+  summed over all 201 z-nodes) drifts by **+2.0e-6 relative**, i.e. +0.002% of
+  the ozone made. The residual is a *gain*, not a loss, and is the O₂ Dirichlet
+  reservoir refilling depletion near the ends — not atoms leaking out. Ozone's
+  own boundary loss is ~5e-5 of the ozone made (end-node O₃ is ~2e-14 cm⁻³
+  against a 1.8e19 peak). **Whatever is wrong with the rates, it is not
+  atom bookkeeping.**
+- **The ozone → dispersion → RDW feedback loop is live and observable** — for
+  the first time, since the const-linop bug below had severed it. A run on the
+  fixed code moves the RDW peak 251.1 nm → 306.9 nm within 6 ms and then creeps
+  to 309.3 nm by 68 ms, landing where the standalone localized-profile test
+  predicted (312 nm). An oscillation *requires* this loop, so no run predating
+  the fix could have produced one even in principle.
+
+**THE current blocker — the chemistry runs ~200x too fast.** The paper reaches
+~3% O₃ after **5 s**; the current code reaches 3.36% after **13 ms**, and
+settles toward ~6.5% against the paper's ~3%. Measured from a live run's saved
+stats, per pulse at the compression point (z ≈ 10.5 cm):
+
+| stat | peak value |
+|---|---|
+| `Dissfrac_O2` | **0.278 % per pulse** |
+| `Dissfrac_O3` | 22.1 % per pulse |
+| `ionfrac_O2` | 2.89 % per pulse |
+| peak intensity | 6.29e13 W/cm² |
+
+The paper's ozone curve implies a per-pulse O₂ dissociation of ~1.4e-5, so the
+O-atom source is **~200x too large**. That single number accounts for
+essentially the whole discrepancy. Note also that O₂ *ionisation* is 10x larger
+than O₂ dissociation but feeds nothing chemically (plasma only), and that O₃
+photolysis at 22%/pulse is **not** a net odd-oxygen sink — it cycles O₃ → O and
+the chemistry converts it straight back.
+
+Two candidate knobs, deliberately *not* both to be tuned (they are degenerate
+against this one observable, so fitting both leaves you unable to say which was
+wrong):
+- **`:O2_diss` barrier, currently 15.5 eV** (superexcited state, Song et al. —
+  NOT the 5.12 eV ground-state bond energy; that was tried and is wrong, see
+  the comment in `PhysData.jl`). ADK is exponential in Ip: measured at the run's
+  actual peak field (21.8 GV/m), 17 eV gives 0.049x, 18 eV gives 0.0061x, and
+  **~18.4 eV supplies the whole 200x**. Three eV of barrier covers it.
+- **`diss_yield` (φ), added this session**, default 1.0 so nothing changes
+  unless passed. The branching ratio of the strong-field channel: the model as
+  written assumes every superexcited molecule dissociates into two O atoms and
+  both survive to make ozone. Structural expectation, **not yet measured**:
+  φ scales the source linearly but odd oxygen Ox = O + O₃ is destroyed by
+  reactions quadratic in it, so equilibrium O₃ ~ √φ and time-to-equilibrium
+  ~ 1/√φ. If that holds, the 200x in the source buys only ~14x in ozone level,
+  landing at ~0.46% (below the paper's 3%) while stretching the timescale to
+  only ~0.7 s (short of 5 s) — i.e. **φ alone could not match both level and
+  timescale**, which would point back at the barrier energy.
+  `examples/diss_yield_scan.jl` measures the actual exponent (frozen field,
+  `uppe_tol=Inf`, so it isolates the chemistry's response to φ);
+  **written, handed to the user to run, result not yet recorded here.**
+
+**The other blocker — cost.** At last measurement the UPPE trigger was
+re-solving on essentially every pulse (58 solves / 57 pulses = 102%, drift
+0.0057 against `uppe_tol=5e-3`), giving **3.84 hours of wall clock per
+simulated second**. The paper's 5 s target is ~19 h; a single ~100 s
+oscillation period would be ~16 days. The drift metric itself is well designed
+(relative χ shift at 255/300/800 nm — the right quantity); it fires constantly
+because O₃ genuinely changes that fast. **Fix the chemistry pace first and
+re-measure — do not tune `uppe_tol` blind.** (Minor: `examples/he_o2.jl`
+sets `uppe_tol = 5e-3` but its comment says 0.1%; it is 0.5%.)
 
 **Load-bearing finding, not yet fully chased down:** the propagation is
 *extremely* sensitive to O₃ density near some threshold. A 2% O₃ fill doesn't
@@ -91,6 +156,21 @@ inventing physics to explain it.
 
 **Fixed this session, most recent first (see git log for full detail —
 this is the "why", not a duplicate of commit messages):**
+- Added **`diss_yield`** (φ) to `apply_lunaion`/`runnew` — see the blocker
+  section above. Default 1.0, so no behaviour change unless passed. Applies to
+  the O₂/N₂ strong-field channel only, NOT to O₃ photolysis (whose own implicit
+  yield of 1.0 is a separate, untouched assumption). Committed together with
+  `examples/diss_yield_scan.jl`.
+- **Corrected the boundary-condition comment** in `ReactionDiffusion.jl`, which
+  claimed "zero-flux (Neumann) boundaries, meaning no species can leave or
+  enter". The live code is the exact opposite: **Dirichlet at both ends** — O₂
+  and N₂ held at bulk fill (an infinite reservoir), every reactive species
+  including O₃ held at **zero** (a perfect sink). The stale comment described a
+  commented-out block the Dirichlet loop had replaced. Harmless for He-O₂
+  (D_O3 ≈ 0.014 cm²/s at 12 bar → ~3.8 mm diffusion length over 5 s, against an
+  ozone peak ~10 cm from either end; half-fibre diffusion time ~4000 s), but
+  **not safe to assume for the air case**, where ~100 s is far closer to the
+  diffusion timescale.
 - **The linear operator was frozen at z=0** (`PropAir.jl`, Luna
   `Capillary.jl`). `setup_propair` used `LinearOps.make_const_linop`, which
   evaluates `Modes.β`/`Modes.α` once with no `z` kwarg and whose `βfun!`
@@ -193,25 +273,29 @@ this is the "why", not a duplicate of commit messages):**
   blocking. `examples/watch_run.jl` tails it.
 
 **Concretely next, in rough priority order:**
-1. There was a `he_o2.jl` run in progress (user-run, outside any assistant
-   session) as of this writing, started **before** the Monitor-timing fix,
-   the O₃-ionisation-removal change, and `save_full`/`load_propagation` all
-   landed — its `examples/he_o2_monitor.jld2`/`.png` reflect the *old*
-   physics and won't have a `_last.jld2`. Don't treat that run's numbers as
-   validating the current code. Once it's done (or a fresh one is started),
-   check whether the RDW-relocation behaviour now shows up in the monitor
-   plot (or doesn't, which would itself be informative given how the
-   standalone localized-profile test behaved — see
-   `examples/o3_localization_check.jl`), and use
-   `examples/plot_last_propagation.jl` to get a real `prop_2D` from it.
-2. Get real `M_efficiency`/`D_scale` values for He (literature third-body
-   efficiency and diffusivity), or at least bound how much they matter.
-3. Run `uppe_trigger_validation.jl` and record the actual convergence
+1. **Record the `diss_yield_scan.jl` result here** — the fitted exponent
+   (peak O₃ ~ φ^α) and whether any φ reaches the paper's 3% at ~5 s. That
+   decides between the two knobs above. If α ≈ 0.5, φ is the wrong lever and
+   the barrier energy is the one to move.
+2. **Get the chemistry pace right** (one knob, chosen on physical grounds),
+   then re-run `he_o2.jl` and check the RDW red-shift is *monotonic* on the
+   way to equilibrium, as the paper reports. Damped ringing would mean the
+   feedback gain is still too high.
+3. **Re-measure the UPPE resolve rate** after (2), not before. If it is still
+   ~100%, that is the moment to think about `uppe_tol` or the drift metric.
+   Any long run is impractical until this is fixed.
+4. Get real `M_efficiency`/`D_scale` values for He (literature third-body
+   efficiency ~0.6-0.7 and diffusivity). Only ~1.5x, so it does not fix (2),
+   but it should be set correctly before quantitative comparison.
+5. Run `uppe_trigger_validation.jl` and record the actual convergence
    numbers here.
-4. Decide `diss_mode` default; consider deleting `:delta` if `:per_pulse` is
+6. Decide `diss_mode` default; consider deleting `:delta` if `:per_pulse` is
    adopted everywhere.
-5. Only once He-O₂ is trusted quantitatively: move to air/N₂-O₂ and the
-   oscillation-period question.
+7. Only once He-O₂ is trusted quantitatively: write `examples/air.jl`
+   (6 bar, 2.2 µJ, 79/21 N₂-O₂ — `air_fill` exists, no script does yet) and
+   go after the oscillation. **It is an air-only phenomenon**: He-O₂ has no
+   NOx branch and the paper reports it monotonic, so it cannot be reproduced
+   in He-O₂ by construction. Revisit the Dirichlet boundary condition there.
 
 ## Architecture
 
