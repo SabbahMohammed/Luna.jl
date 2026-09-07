@@ -256,9 +256,41 @@ Dropbox `PhD/Ozone paper/images/side/`.
   a testable, physically meaningful outcome if the 1-D run bears it out.
 - Timing of the 1-D frozen-optics run: nbundle=10, 201 nodes, reltol 1e-5 /
   abstol 1e-12 → 180 s wall per simulated second (1.8 s per 10 ms kick).
-  Tolerances and node count are now exposed (`rd_reltol`, `rd_abstol`,
-  `npoints`); background commands must use absolute paths (the harness resets
-  the shell cwd to the parent directory).
+  The RD tolerances are still **hard-coded** in the runner (`Rodas5`, reltol
+  1e-5, abstol 1e-12, `isoutofdomain` rejecting u < −1e-15); only `dtmax`
+  and `dt_after` are exposed (`rd_dtmax`, `rd_dt_after`), and the node count
+  via `setup_run(npoints=)`. Background commands must use absolute paths (the
+  harness resets the shell cwd to the parent directory).
+- **Result of the first 100 s frozen-optics 1-D runs (2026-09-07, 6 bar air,
+  2.2 µJ, 22.5 cm, φ=0.14, f2D=0.5, wall×1, nbundle=20, 201 nodes, the
+  runner's reltol 1e-5/abstol 1e-12, dtmax 1 ms, dt_after 1e-8; 4.3 h wall
+  each = 150–155 s/s):**
+  `examples/oscillation/air1d_T100_f2D0.5_eta{0.03,0.1}_wall1.0_phi0.14_nb20*`.
+  Neither run ever transmits: the readout (z_c = 7.3 cm) is −942 dB (η=0.03)
+  and −372 dB (η=0.1) at 100 s. What was learned:
+  (i) **The rise is ~100× too fast.** The downstream column passes τ=1
+  (1e17 cm⁻²) before the first save at 0.4 s and sits at 2–6e19 cm⁻² by 1 s;
+  the experiment keeps the band visible for ~50 s. Every later timescale
+  inherits this, so the absolute O-atom yield (φ, and η's O₂⁺ share) must be
+  calibrated before any period means anything — the He-O₂ shift-rate data is
+  the right constraint (no NOx there).
+  (ii) **Titration works, ∝ η, but only where the pulse is weak.** At η=0.1 the
+  15–21 cm lobe falls 19× (5.7e19 → 3e18 cm⁻²) in 100 s; at η=0.03 only 3×.
+  But the entrance lobe (0–5 cm, 7.5e18 cm⁻³) and the last centimetre before
+  the exit (final recompression, 5e18 cm⁻³ = 4.6e18 cm⁻², −229 dB on its own)
+  are untouched. Reason: ADK dissociation (15.5 eV) is steeper in intensity
+  than PPT ionisation, so at the intensity peaks O/N ≫ 1 and ozone wins; in
+  the weaker lobes the ion channel gives N/O ≈ 0.1–0.5 and NOx wins. So with
+  frozen optics the band can never return — the exit spike alone blocks it —
+  and its fate depends on the optics *moving* (entrance ozone changes the
+  dispersion, which relocates/weakens the downstream recompression). The next
+  run must be unfrozen (`uppe_tol` ~10 % drift).
+  (iii) **NOx never accumulates**: NO₂ and NO peak within 1 s (Σz ≈ 3e18 and
+  1e18 cm⁻³ at η=0.03) and decay; N₂O keeps growing and overtakes total O₃ by
+  ~20 s — N+NO₂→N₂O is still the dominant nitrogen sink, exactly as in the 0-D
+  model. No switch, just steady titration by a small standing NOx level.
+  Julia buffers stdout to a file, so a background run's log lags the run by
+  many minutes — judge progress from the Monitor PNG mtime, not the log.
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
   counted in `Rates.jl` (each channel carried the total rate).
 
