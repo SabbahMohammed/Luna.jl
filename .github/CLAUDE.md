@@ -333,26 +333,74 @@ Dropbox `PhD/Ozone paper/images/side/`.
   φ is calibrated — but the *spatial* behaviour is new and did not appear in any
   frozen run:
   (i) The ozone profile is no longer two lobes. It is near-uniform along the
-  whole fibre (~2e18 cm⁻³) with **narrow, deep burn-out holes at the
-  self-compression points** — ozone falls below 1 cm⁻³ over ~5 mm at z ≈ 7.5 cm,
-  and a second hole opens at z ≈ 11 cm by 2.6 s. Real physics, not a numerical
-  artefact: where the pulse compresses hardest, O₃ photolysis plus O + O₃ → 2O₂
-  destroys odd oxygen faster than O + O₂ + M makes it, so ozone burns out at the
-  intensity peak while it accumulates everywhere else.
+  whole fibre (~2e18 cm⁻³) with **narrow, deep holes** where ozone falls below
+  1 cm⁻³ over ~5 mm at z ≈ 7.5 cm, a second opening at z ≈ 11 cm by 2.6 s.
+  **These are at least partly the pulse-bundling bug found straight afterwards
+  (see below) and must be re-run before being believed** — that bug zeroed
+  downstream ozone every kick wherever the per-pulse photolysis fraction times
+  nbundle exceeded 1, which is exactly the high-intensity region where the holes
+  appear. A real burn-out effect should still exist (at the compression point
+  O₃ photolysis plus O + O₃ → 2O₂ can outrun O + O₂ + M), but its depth and
+  position here are not trustworthy.
   (ii) **The holes migrate downstream** as ozone accumulates upstream and changes
-  the dispersion that sets where the pulse recompresses. A burned-out hole is
-  transparent at 255 nm. So there is a spatial relaxation-oscillator candidate
-  here that no 0-D or 3-box model can express, and that the frozen runs
-  structurally could not show: the compression point walks along the fibre,
-  burning a transparent channel; when the transparent region reaches far enough
-  downstream the RDW gets out again. This is CLAUDE.md's earlier candidate (iii)
-  (a propagating front) appearing on its own.
+  the dispersion that sets where the pulse recompresses. A transparent hole is
+  transparent at 255 nm, so this is a spatial relaxation-oscillator candidate
+  that no 0-D or 3-box model can express and that frozen optics structurally
+  cannot show: the compression point walks along the fibre, opening a
+  transparent channel; when it reaches far enough downstream the RDW gets out
+  again. This is the earlier candidate (iii) (a propagating front) appearing on
+  its own. Subject to the same caveat as (i) — re-run before relying on it.
   (iii) The RDW **relocates rather than fading**: centroid 273 → 327 nm within
   0.12 s, output down 20 dB. Consistent with the standing "load-bearing finding"
   that ~2 % O₃ moves the band to 310–320 nm.
   Cost: 207 s wall per simulated second, worse than frozen, because ozone at
   φ=0.14 drives 38 UPPE re-solves in 3 s. Calibrating φ down should fix the cost
   and the physics together, since the re-solve rate is driven by ozone drift.
+- **φ is NOT the reason the model is too fast — my earlier diagnosis was wrong.**
+  `examples/oscillation/he_o2_phi_calibration.jl` scans φ against the paper's own
+  He-O₂ number (Sec. III E / Fig. 6b, quoted in `examples/he_o2.jl`): 9.3e24 m⁻³
+  ozone, ~3 % of the local density, after ~5 s at 12 bar, 2.5 µJ, 22 cm.
+  Frozen optics, 5 s each, ~80 s wall per φ:
+
+  | φ | 0.14 | 0.05 | 0.015 | 0.005 | 0.0015 | 0.0005 |
+  |---|---|---|---|---|---|---|
+  | peak O₃ (1e23 m⁻³) | 29.0 | 15.5 | 6.40 | 2.53 | 0.89 | 0.38 |
+  | % of n | 0.98 | 0.53 | 0.22 | 0.086 | 0.030 | 0.013 |
+  | t₉₀ (s) | 0.04 | 0.04 | 0.02 | 0.02 | 0.02 | 0.02 |
+
+  Two results, both against my earlier claim. **φ = 0.14 UNDER-produces ozone by
+  3.2×**, not over-produces: the level scales as φ^0.78 and hitting the target
+  would need φ ≈ 0.53. And **t₉₀ is 0.02–0.04 s at every φ over a 280× range** —
+  the equilibration time does not depend on the source at all, so no φ can buy
+  the paper's 5 s rise. (t₉₀ is resolution-limited at one 20 ms kick, so the true
+  value may be faster still.)
+- **Why the model equilibrates in ~8 pulses instead of ~5000, and why the scan
+  above cannot answer the calibration question anyway.** Measuring the
+  single-pulse ozone photolysis fraction along the He-O₂ fibre: 2.7e-4 at the
+  entrance, 5e-4 at 6.6 cm, 0.024 at 11 cm, then **0.114–0.122 from 13 cm to the
+  exit**. A 30 µm core puts ~1e16 photons/cm² on a 1e-17 cm² cross-section, so
+  the RDW photolyses ~12 % of the ozone it passes, per pulse — 1/e in 8 pulses.
+  With the optics FROZEN the RDW is nailed inside the Hartley band forever, so
+  ozone hits a photolysis-limited equilibrium almost immediately. That is an
+  artefact of my scan design, not of the model: photolysis is not a net odd-oxygen
+  sink (O₃ + hν → O + O₂, then O + O₂ + M → O₃ in ~100 ns), so what should set
+  the real 5 s timescale is ozone pushing the RDW *out* of its own absorption
+  band — σ falls 100× between 255 nm and 320 nm — which frozen optics forbids by
+  construction. **Any φ calibration must therefore be run with live optics.**
+- **Bug fixed: pulse bundling in `apply_photochem` scaled the dose instead of
+  saturating.** It multiplied the spectral energy density by `nbundle`, but
+  photolysis removes a fraction of what is present, so n pulses leave (1−f)ⁿ,
+  not 1−nf. With f = 0.122 and nbundle = 20 the old form asked to destroy 244 %
+  of the ozone: O₃ went negative and was zeroed by `runnew`'s clamp, every kick,
+  over the downstream half of the fibre. Correct bundling leaves 0.88²⁰ = 7.8 %.
+  `PhotoReactor` now takes `npulses` and applies 1−(1−f)ⁿ per species, splitting
+  between channels by their single-pulse yields (exact — the quantum yields are
+  intensity-independent), f capped at 1; NO₂, NO₃ and N₂O get the same
+  treatment. **This invalidates the ozone profiles of every nbundle=20 run so
+  far** — both 100 s frozen runs and the 3 s live run. Their NOx conclusions
+  (titration ∝ η, no NOx accumulation, N + NO₂ → N₂O drain) are qualitative and
+  probably survive; the ozone profiles and all timings do not. `nbundle=1` runs
+  were never affected. Now covered by a package test.
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
   counted in `Rates.jl` (each channel carried the total rate).
 
