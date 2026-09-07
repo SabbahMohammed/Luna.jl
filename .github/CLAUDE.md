@@ -402,20 +402,29 @@ Dropbox `PhD/Ozone paper/images/side/`.
   probably survive; the ozone profiles and all timings do not. `nbundle=1` runs
   were never affected. Now covered by a package test.
 - **Bug: `runnew` returned a post-photolysis transient, not the between-pulses
-  state — every ozone number ever read off a returned `rs` is ~100x low.** The
+  state — every ozone number ever read off a returned `rs` is ~115x low.** The
   RD runner built `tstops = range(0, tmax, step=pulse_dt)` and fired the
   chemistry callback at every one of them, including the last, which is `tmax`
-  itself whenever tmax is a multiple of pulse_dt (essentially always). So the
-  final state is sampled in the instant AFTER a photolysis kick and BEFORE the
-  ~100 ns O + O₂ + M → O₃ that puts the ozone back — photolysis is not a net
-  odd-oxygen sink. Measured on He-O₂, φ=0.05, nbundle=20: the monitor's last
-  pre-kick snapshot is 11.0e18 cm⁻³, the returned `rs.O3` is 0.096e18, a factor
-  of 115. Identical for `fast_rhs` true and false, so it long predates the
-  speed-up. The kick schedule now excludes the final tstop, leaving one pulse
-  interval of field-free relaxation, so the returned state is the one every
-  caller assumes. **The monitor histories were always right** (they snapshot
-  pre-kick), which is why the air runs' O₃(z) plots looked sane while the
-  calibration's `maximum(rs.O3)` did not.
+  itself whenever tmax is a multiple of pulse_dt (essentially always). The
+  solver saves a point on BOTH sides of a callback, so the last saved point —
+  the state written back into the caller's arrays — is the instant AFTER a
+  photolysis kick and BEFORE the ~100 ns O + O₂ + M → O₃ that puts the ozone
+  back (photolysis is not a net odd-oxygen sink). The saved pairs on He-O₂,
+  φ=0.05, nbundle=20 make it plain:
+
+  | t (s) | 0.02 | 0.10 | 0.18 | 0.20 |
+  |---|---|---|---|---|
+  | pre-kick O₃ (1e18 cm⁻³) | 1.325 | 6.127 | 10.152 | 11.035 |
+  | post-kick O₃ (1e18 cm⁻³) | 0.0096 | 0.0481 | 0.0864 | 0.0960 |
+
+  Identical for `fast_rhs` true and false, so it long predates the speed-up.
+  Kicks within one pulse interval of `tmax` are now excluded, leaving that much
+  field-free relaxation, and `save_end=true` is explicit. **The monitor
+  histories were always right** (they snapshot pre-kick), which is why the air
+  runs' O₃(z) plots looked sane while the calibration's `maximum(rs.O3)` did
+  not. Note also what the table shows about nbundle=20: the ozone is crashing
+  by 99 % and rebuilding every 20 ms, which is the bundling-validity problem
+  below, not a transient worth modelling.
 - **Bug in the same three lines: `condition` indexed `tstops[ni]` unguarded**, so
   any `tmax` that is not an exact multiple of `pulse_dt` threw `BoundsError`
   once the solver stepped past the final tstop. Now bounds-checked. (This is why
@@ -427,16 +436,30 @@ Dropbox `PhD/Ozone paper/images/side/`.
   loses 92 % of its ozone at once. So `nbundle` ≲ 2 for these cases, not 20 —
   which costs 10–20x, roughly offset by the 6.3x solver speed-up. Every
   nbundle=20 result so far is affected.
-- **Live-optics φ calibration (8 s, tol=0.1, He-O₂ 12 bar / 2.5 µJ / 22 cm),
-  reading the MONITOR (the returned-state bug above makes the printed "peak O3"
-  column of these runs wrong):** at φ=0.05 the monitor's peak ozone plateaus at
-  15.9e24 m⁻³, already 1.7x ABOVE the paper's 9.3e24 target, and the rise is
-  slower than frozen optics but still fast — 50 % at 0.2 s, 90 % at 0.64 s, 99 %
-  at 1.2 s, against the paper's ~5 s. The RDW centroid jumps 255 → 312 nm within
-  the first snapshot and then sits there, so the band does leave the Hartley
-  region as predicted, but it does so in ~0.1 s rather than over seconds. Only
-  13–16 UPPE re-solves in 8 s. **Re-run needed with nbundle ≤ 2 and the kick-schedule
-  fix before drawing a φ from this.**
+- **Live-optics φ calibration (8 s, tol=0.1, nbundle=20, He-O₂ 12 bar / 2.5 µJ /
+  22 cm), reading the MONITOR — the returned-state bug above makes the printed
+  "peak O3" column of these runs wrong by 115x:** at φ=0.05 the monitor's peak
+  ozone plateaus at 15.9e24 m⁻³, already 1.7x ABOVE the paper's 9.3e24 target
+  (so **φ is well below 0.05**, the opposite of the frozen scan's φ ≈ 0.53), and
+  the rise is 50 % at 0.2 s, 90 % at 0.64 s, 99 % at 1.2 s against the paper's
+  ~5 s. The RDW centroid jumps 255 → 312 nm within the first snapshot and then
+  sits there, so the band does leave the Hartley region, but in ~0.1 s rather
+  than over seconds. Only 13–16 UPPE re-solves in 8 s. Superseded by the
+  nbundle=2 re-run.
+- **Why a lower φ should fix the rise time as well as the level, and how to
+  read the answer.** The production per pulse is 2φ·f_ADK·[O₂]; at the
+  compression peak f_ADK ≈ 9e-3, so φ=0.05 makes 5.6e16 cm⁻³ per pulse against
+  an equilibrium of ~1.6e19 — 280 pulses, 0.28 s. φ=0.005 gives 2800 pulses,
+  2.8 s. So the rise time scales as (level)/φ and a single φ can in principle
+  match BOTH halves of the paper's target (9.3e24 m⁻³ AND ~5 s). If no φ matches
+  both, the sink side of the network is wrong, not the source — that is the
+  discriminating test this calibration is for.
+- Sanity check on the photolysis fraction, since everything above turns on it:
+  100 nJ of RDW at 260 nm is 1.3e11 photons, over a 7.07e-6 cm² core that is
+  1.9e16 cm⁻², times σ = 1e-17 cm² gives f = 0.19. The measured 0.12 corresponds
+  to ~65 nJ, i.e. 2.6 % conversion of a 2.5 µJ pump. So the model's per-pulse
+  photolysis is physically right; it is a genuine consequence of a 30 µm core,
+  not a coding error.
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
   counted in `Rates.jl` (each channel carried the total rate).
 
