@@ -327,6 +327,32 @@ Dropbox `PhD/Ozone paper/images/side/`.
   reproduce the old behaviour. **BDF integrators (FBDF, QNDF, KenCarp47) all die
   immediately with `DtLessThanMin`** on this penalty-Dirichlet mass-matrix form
   (the 1e30 penalty rows), so it is Rosenbrock only until the BCs change.
+- **First live-optics 1-D run (3 s, φ=0.14, η=0.1, f2D=0.5, wall×1, tol=0.1,
+  201 nodes; `air1dlive_T3_*`), and a new mechanism candidate.** Everything
+  happens inside 0.1 s at this φ, so treat the timescale as meaningless until
+  φ is calibrated — but the *spatial* behaviour is new and did not appear in any
+  frozen run:
+  (i) The ozone profile is no longer two lobes. It is near-uniform along the
+  whole fibre (~2e18 cm⁻³) with **narrow, deep burn-out holes at the
+  self-compression points** — ozone falls below 1 cm⁻³ over ~5 mm at z ≈ 7.5 cm,
+  and a second hole opens at z ≈ 11 cm by 2.6 s. Real physics, not a numerical
+  artefact: where the pulse compresses hardest, O₃ photolysis plus O + O₃ → 2O₂
+  destroys odd oxygen faster than O + O₂ + M makes it, so ozone burns out at the
+  intensity peak while it accumulates everywhere else.
+  (ii) **The holes migrate downstream** as ozone accumulates upstream and changes
+  the dispersion that sets where the pulse recompresses. A burned-out hole is
+  transparent at 255 nm. So there is a spatial relaxation-oscillator candidate
+  here that no 0-D or 3-box model can express, and that the frozen runs
+  structurally could not show: the compression point walks along the fibre,
+  burning a transparent channel; when the transparent region reaches far enough
+  downstream the RDW gets out again. This is CLAUDE.md's earlier candidate (iii)
+  (a propagating front) appearing on its own.
+  (iii) The RDW **relocates rather than fading**: centroid 273 → 327 nm within
+  0.12 s, output down 20 dB. Consistent with the standing "load-bearing finding"
+  that ~2 % O₃ moves the band to 310–320 nm.
+  Cost: 207 s wall per simulated second, worse than frozen, because ozone at
+  φ=0.14 drives 38 UPPE re-solves in 3 s. Calibrating φ down should fix the cost
+  and the physics together, since the re-solve rate is driven by ozone drift.
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
   counted in `Rates.jl` (each channel carried the total rate).
 
