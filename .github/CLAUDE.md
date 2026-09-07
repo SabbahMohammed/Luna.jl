@@ -460,6 +460,32 @@ Dropbox `PhD/Ozone paper/images/side/`.
   to ~65 nJ, i.e. 2.6 % conversion of a 2.5 µJ pump. So the model's per-pulse
   photolysis is physically right; it is a genuine consequence of a 30 µm core,
   not a coding error.
+- **φ ≈ 0.05 is the calibration (2026-09-07), on the LEVEL.** With all three
+  bugs fixed and nbundle=2, live optics, 8 s, He-O₂ 12 bar / 2.5 µJ / 22 cm
+  (~800 s wall each, 9–16 UPPE solves):
+
+  | φ | 0.05 | 0.015 | 0.005 |
+  |---|---|---|---|
+  | peak O₃ (1e24 m⁻³) | 8.78 | 5.69 | 3.66 |
+  | % of local density | 2.97 | 1.93 | 1.24 |
+  | fraction of the 9.3e24 target | 0.945 | 0.612 | 0.394 |
+  | t₉₀ (s) | 0.25 | 0.45 | 0.71 |
+
+  **φ = 0.05 hits the paper's ozone dead on**: 8.78e24 against 9.3e24, and
+  2.97 % of the local density against the paper's "about 3 %". Use φ = 0.05.
+  Scalings: level ∝ φ^0.38, t₉₀ ∝ φ^-0.45 — note the SIGN, lower φ is slower,
+  the opposite of what I predicted from the production-rate argument above (that
+  argument ignored that the equilibrium level falls with φ too).
+- **Open question for the user: is the paper's "~5 s" a rise time or a
+  measurement checkpoint?** The model reaches the right level in 0.25 s and then
+  plateaus. If ~5 s is when the paper *sampled* the ozone, there is no
+  discrepancy at all and the calibration is complete. If it is the observed rise
+  time, then no single φ can match both halves (t₉₀ = 5 s would need φ ≈ 5e-5,
+  giving a level 15x below target), which would put the error in the SINK side
+  of the network, not the source. `examples/he_o2.jl`'s own header calls it "the
+  paper's 9.3e24 m⁻³ checkpoint" and sets `tevolve = 1`, which leans towards
+  checkpoint — but this is worth one look at Sec. III E / Fig. 6b before
+  building on it.
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
   counted in `Rates.jl` (each channel carried the total rate).
 
