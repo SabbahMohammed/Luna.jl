@@ -133,6 +133,135 @@ because O₃ genuinely changes that fast. **Fix the chemistry pace first and
 re-measure — do not tune `uppe_tol` blind.** (Minor: `examples/he_o2.jl`
 sets `uppe_tol = 5e-3` but its comment says 0.1%; it is 0.5%.)
 
+**Oscillation mechanism hunt (started 2026-09-07) — what the data say, what
+the model says, and where it stands.** Sources: the paper draft
+(`~/Downloads/Ozone.pdf`), the 22.5 cm and 27 cm pressure/energy grids, the
+thesis Ch. 7 (Dropbox `PhD_Thesis/reviews/MSabbah_PhD_Thesis_John_ozone.pdf`,
+text dump in the session scratchpad), and the side-scattering images in
+Dropbox `PhD/Ozone paper/images/side/`.
+- **Geometry: the air/N₂-O₂ experiments used a 22.5 cm fibre** (thesis 7.1;
+  the 27 cm grid is a second length). `PropAir`'s 15 cm default is NOT the
+  experiment. 6 bar, 2.2 µJ, 79/21, dry synthetic N₂/O₂, sealed static cell.
+- **What "disappearance" is.** Thesis p.101, confirmed by the side-scattering
+  images (UV at 230–295 nm visible from the side while the output is dark):
+  the RDW is *still generated*; it is *absorbed by ozone downstream* of the
+  compression point (z_c ≈ 7.3 cm, so ~15 cm of ozone to cross). Luna agrees:
+  at 22.5 cm, **0.03% uniform O₃ already kills the 268 nm band** — pure
+  Beer–Lambert, σ(255 nm)·n·L ≈ 2.6e4 per unit fraction. The observable is
+  therefore **transmission through the downstream ozone column**, not a
+  phase-matching switch. (At 7–8 bar the RDW sits at 300–350 nm, on the
+  Hartley tail, so it never vanishes — it shifts and then drifts *back*.)
+- **The slow, N₂-only process is ozone *decaying*.** In every air panel the
+  band returns to its original wavelength after ~50–130 s; in He-O₂ it never
+  does (700 s). Ozone in the dark at 300 K has no volumetric sink except
+  chemistry, and diffusion to the ends is ~4000 s. So something present only
+  with N₂ removes ozone from the downstream column on ~100 s. Oscillation
+  (period ~45 s at 5 bar, ~100 s at 6 bar for 22.5 cm; ~100–200 s for 27 cm)
+  appears only in a *window* of pulse energy (2.2 µJ at 22.5 cm; 1.6/2.2 µJ
+  at 27 cm); outside it the band returns and stays. Thesis: "no obvious
+  relationship" with parameters — treat the period scalings as soft.
+- **Reduced 0-D model (`examples/oscillation/reduced_nox_model.jl`) with the
+  code's own network finds NO oscillation and NO slow ozone decay** in any
+  regime tried (φ 1→0.005, τ_diff 3.8 s→∞, N source ×1→every N₂⁺). NOx is
+  capped at ~2e14 cm⁻³ (~1 ppm) because N + NO₂ → N₂O + O (k17) beats N + O₂
+  → NO + O (k14, ground-state 8.5e-17) once NO₂ reaches ~1e14, and N₂O is a
+  dead end. That is 4–5 orders too weak to touch ozone. **Missing physics
+  identified (none implemented in the full model yet):** (1) plasma
+  recombination atom sources — O₂⁺ + e → O + O and N₂⁺ + e → N + N; the
+  code discards all ionisation products as "plasma only", yet ionfrac_N2 at
+  z_c is 1.0%/pulse, 3000× the ADK N₂ dissociation; (2) N(²D): a large
+  fraction of those N atoms is excited, and N(²D) + O₂ → NO + O at ~5e-12
+  bypasses the N₂O drain entirely (a `k14mult` knob now exists in the reduced
+  model as a proxy); (3) N + N + M / N + O + M recombination, without which
+  the ion source is absurd (N₂O reached 18% of the gas); (4) NO₃ + NO₂ + M →
+  N₂O₅ (NOx sequestration) and its thermal/UV release.
+- **Working hypothesis (not yet demonstrated): NOx titration of the
+  downstream ozone column.** Filament literature (Petit 2010, Camino 2015)
+  has NOx at tens of ppm alongside O₃ at hundreds of ppm — i.e. NOx
+  *comparable to the ~100 ppm column that blacks out the RDW*. NO + O₃ →
+  NO₂ + O₂ then NO₂ + O₃ → NO₃ needs no O atoms, so downstream of the zone
+  each N removes ~2 O₃ stoichiometrically. Accumulating NOx over ~100 s
+  titrates the column → band returns (He-O₂: no titrant → never returns).
+  Oscillation would be the relaxation limit of that titration when NOx
+  production ≈ ozone production (the energy window). Untested.
+- **Side-scattering, calibrated spectrometer (user confirmed), lines never
+  identified:** in `images/side/side.png` a very bright narrow line at 232 nm
+  and a weaker one at 245 nm switch on at t ≈ 35 s and persist. These sit on
+  the **NO γ-band v′=1 heads (1,2) 233.0 and (1,3) 244.0 nm** to ~1 nm; the
+  strongest γ bands, (0,0) 226.9 and (1,0) 214.9, terminate on v″=0 and are
+  self-absorbed by ground-state NO, which would explain their absence. If
+  this assignment holds it is *direct* evidence of NO, appearing on a ~35 s
+  timescale. Check: weak (1,4) 255.4 and (0,3) 258.7 nm (a faint line near
+  256 nm is visible). The alternative reading is non-guided RDW light
+  (λ < 240 nm scatters at the fibre resonance). Unresolved.
+- `examples/oscillation/nox_titration_model.jl`: 3-box (upstream / zone /
+  downstream) model with a Beer–Lambert readout and the four missing pieces
+  of physics above as parameters (φ, η, f2D). Built to test the titration
+  hypothesis. **First scan (φ=0.14, 300 s):** with the code's own network
+  (η=0, f2D=0) the downstream column only grows — output −130…−160 dB, band
+  never returns (He-O₂-like). With half the N atoms as N(²D) (η=0, f2D=0.5)
+  NOx titrates the downstream column: output **−51 dB @50 s → −17 dB @150 s
+  → −13 dB @300 s** — the experiment's dark-then-return on the right
+  timescale. Net NOx supply = (2·f2D−1)·N-source, a knife-edge between
+  N(²D)+O₂→NO and N(⁴S)+NO→N₂+O. Larger sources (f2D=1, or any η ≥ 1e-3)
+  return in 3–30 s and NO runs away to 10–30% of the gas: **once ozone is
+  gone this network has no NOx sink**, so the titrant is never consumed and
+  nothing can oscillate. **Missing: the wall.** In a 30 µm bore the
+  diffusion-limited loss is 5.78 D/r² ≈ 5e4 /s; NO₃/N₂O₅ (γ~1e-3 on silica)
+  die on the wall in ~20 µs, making NO + O₃ → NO₂ → (+O₃) NO₃ → wall a
+  *stoichiometric*, self-consuming titration — the closing step a
+  relaxation cycle needs — and ~95% of N(⁴S) recombines on the wall
+  (dissolving the knife-edge). γ(O₃) ≲ 1e-9 is bounded by He-O₂ keeping its
+  ozone for 700 s. Wall terms are now a parameter (`wall`) of the model;
+  **Wall scan (φ=0.14, η=0, 300 s; k_wall O 2.1e4, N 2.2e4, NO₃ 1.1e4,
+  N₂O₅ 8.1e3, NO₂ 12 s⁻¹):** f2D=0.5 → **band returns at 102 s**
+  (−40.6 dB @50 s, −10.6 @100 s, −3.8 @150 s, −2.1 @300 s) with NOx bounded
+  at ppm levels (NO 3e14, NO₂ 1e15, N₂O₅ ~1e10) — the first physically
+  sensible reproduction of the dark-then-return, and absent entirely with the
+  code's own network. f2D=0.75 / 1 return at 48 / 29 s but NO runs away to
+  0.3–4% (NO has no sink). **No oscillation in any run** — after the return
+  the band stays on (matches the non-oscillating grid panels, not the 2.2 µJ
+  ones). Structural reason: one slow variable (NOx) driving a fast one (O₃)
+  cannot cycle. Candidates for the second slow variable / bistability, in
+  order: (i) N₂O — already climbing past 1% in every run, and O(¹D)+N₂O→2NO
+  is UV-gated, so its release switches with the RDW; (ii) the RDW wavelength
+  crossing the Hartley band as ozone changes (the Beer–Lambert readout uses
+  σ(255 nm) only, and box B is attenuated across the whole spectrum instead
+  of only in the Hartley band — a known crudeness); (iii) spatial: in the
+  no-wall run the downstream column collapsed abruptly at ~145 s when the
+  NOx front arrived — a propagating front the 3-box model cannot resolve.
+  Figures: `examples/oscillation/nox_*.png`. Each 300 s run costs ~20 min.
+- **The 3-box model's "source only in the zone" was too kind.** The first 1-D
+  frozen-optics run (`air_1d_frozen.jl`, 2 s) shows ozone made along the
+  *whole* fibre — recompression peaks at 7, 10, 14 and 19 cm, and ~1e15 cm⁻³
+  even at the entrance within 0.3 s — so the downstream column is 1e17–1e18
+  everywhere by 2 s (output −1500 dB). From the frozen solve's stats along z:
+  the ADK N₂ channel (21 eV) is 1e-5–1e-2 of the O source everywhere — never
+  a titrant. The *ionisation* channel (PPT) gives N/O ≈ 0.5 at the peak and
+  ≈ 0.08 off-peak for any η (the ratio ionfrac_N2·0.79 / ionfrac_O2·0.21 is
+  η-independent), and ionfrac_O2 off-peak is ~900× Dissfrac_O2 (8e-4/pulse
+  at z = 1 cm), so with η > 0 both ozone and NOx are made along the whole
+  fibre. **η (recombination-to-atoms yield) is the lever, and it acts on
+  both species.** Physics note: at 6 bar three-body attachment e + O₂ + M
+  (~1e10 s⁻¹) competes with dissociative recombination, so η is genuinely
+  uncertain, likely 0.1–0.5.
+- **Where a limit cycle could come from, now that the sinks are in:** with
+  ozone high, NO₂ is drained by NO₂ + O₃ → NO₃ → wall at k₂₀·[O₃] ≈ 30 s⁻¹, so
+  NOx cannot accumulate; as ozone falls NO₂ rises ∝ 1/[O₃] and the catalytic
+  O + NO₂ → NO + O₂ / NO + O₃ cycle strengthens — positive feedback, i.e. a
+  switch, matching the abrupt "return". In the ozone-free state NOx then
+  dies only by NO₂ wall loss (γ = 1e-6 → 12 s⁻¹, 80 ms — too fast; γ ~ 1e-8
+  → ~10 s) after which ozone rebuilds. **The period would be set by the
+  NO₂/NO wall uptake coefficients**, the least-known numbers in the model —
+  a testable, physically meaningful outcome if the 1-D run bears it out.
+- Timing of the 1-D frozen-optics run: nbundle=10, 201 nodes, reltol 1e-5 /
+  abstol 1e-12 → 180 s wall per simulated second (1.8 s per 10 ms kick).
+  Tolerances and node count are now exposed (`rd_reltol`, `rd_abstol`,
+  `npoints`); background commands must use absolute paths (the harness resets
+  the shell cwd to the parent directory).
+- Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
+  counted in `Rates.jl` (each channel carried the total rate).
+
 **Load-bearing finding, not yet fully chased down:** the propagation is
 *extremely* sensitive to O₃ density near some threshold. A 2% O₃ fill doesn't
 fade the RDW in place — it **relocates the entire band** (~250 nm →
@@ -156,6 +285,41 @@ inventing physics to explain it.
 
 **Fixed this session, most recent first (see git log for full detail —
 this is the "why", not a duplicate of commit messages):**
+- **1-D model extended for the NOx mechanism (2026-09-07), all opt-in — defaults
+  reproduce the old behaviour exactly.** `Species`: 11th species `:N2O5`
+  (appended to `SOLVE`; in `STATE` after `:N2O`), so `NSPEC` is now 11 and
+  `ReactionState` has an `N2O5` field. `Rates`: k22 N+N+M, k23 N+O+M, k24
+  NO₂+NO₃+M→N₂O₅ (Troe, JPL 19-5), k25 N₂O₅+M→NO₂+NO₃ (= k24/K_eq, 0.05 s⁻¹);
+  `D_N2O5`; new `WallParams(a, dp; scale, γ)` — per-species first-order wall
+  loss `min(γ·v̄/2r, 5.78·D/r²)` in `SOLVE` order, defaults γ = 1e-3 for O, N,
+  O(¹D), NO₃, N₂O₅ and 1e-6 for NO₂, **0 for O₃ and NO** (He-O₂ keeps its
+  ozone for 700 s ⇒ γ(O₃) ≲ 1e-9). `ReactionDiffusion.reaction!` carries the
+  four reactions and the wall term (atoms return as O₂/N₂, NOy sticks);
+  `ReactionDiffusionSolver(...; wall=nothing)`. `State.apply_lunaion(...;
+  ion_yield=0, f2D=0, npulses=1)`: O₂⁺+e→O+O and N₂⁺+e→N+N from Luna's
+  `ionfrac_*` stats scaled by `ion_yield`; a fraction `f2D` of fresh N atoms
+  is applied as N(²D)+O₂→NO+O instantaneously. `apply_photochem(...;
+  attenuate=false, npulses=1)`: Beer–Lambert attenuation of the spectrum at
+  each z by the O₃ column upstream of it, using the O₃ cross-section on the
+  ω grid (new `PhotoReactor.σO3` field). `runnew(...; ion_yield, f2D,
+  attenuate, nbundle=1, rd_dtmax=1e-4, rd_dt_after=1e-14)`: `nbundle` applies
+  n pulses as one kick (fractions 1−(1−f)ⁿ, photon dose ×n, tstops every
+  n ms — the paper's own "5 chemistry steps per solve" done honestly); the
+  two `rd_*` knobs expose the RD solver's `dtmax` and its post-kick restart
+  dt, which were hard-coded to 1e-4 and 1e-14 and cost ~1 s wall per pulse
+  (2211 unknowns). `setup_run(...; wall=nothing)`. The RD runner now takes
+  `N2O5` positionally after `N2O`; its two per-pulse `println`s are behind
+  `verbose`. `examples/oscillation/air_1d_frozen.jl` is the frozen-optics
+  driver with the transmission readout (T = exp(−σ₂₅₅∫_{z_c}^{L} n_O₃ dz)
+  from the Monitor O₃(z) history). **Runs from a script must set
+  `ENV["MPLBACKEND"]="Agg"` before loading the package** — `Monitor.render`
+  from inside the solver callback crashes the Tk backend.
+- **Bug: the N₂ source was silently off in `:per_pulse` mode.** `apply_lunaion`
+  still used the delta-vs-`prev_N2frac` form for N₂ after `:per_pulse` was
+  introduced for O₂/O₃, so with a reused field (frozen optics, or any pulse
+  between UPPE re-solves) N₂ dissociated only on the first pulse. Now follows
+  `diss_mode` like O₂. (The "Conventions" note below about not touching the
+  delta pattern predates `diss_mode` and applies only to `:delta` mode.)
 - Added **`diss_yield`** (φ) to `apply_lunaion`/`runnew` — see the blocker
   section above. Default 1.0, so no behaviour change unless passed. Applies to
   the O₂/N₂ strong-field channel only, NOT to O₃ photolysis (whose own implicit
