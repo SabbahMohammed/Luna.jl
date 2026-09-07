@@ -401,6 +401,42 @@ Dropbox `PhD/Ozone paper/images/side/`.
   (titration ∝ η, no NOx accumulation, N + NO₂ → N₂O drain) are qualitative and
   probably survive; the ozone profiles and all timings do not. `nbundle=1` runs
   were never affected. Now covered by a package test.
+- **Bug: `runnew` returned a post-photolysis transient, not the between-pulses
+  state — every ozone number ever read off a returned `rs` is ~100x low.** The
+  RD runner built `tstops = range(0, tmax, step=pulse_dt)` and fired the
+  chemistry callback at every one of them, including the last, which is `tmax`
+  itself whenever tmax is a multiple of pulse_dt (essentially always). So the
+  final state is sampled in the instant AFTER a photolysis kick and BEFORE the
+  ~100 ns O + O₂ + M → O₃ that puts the ozone back — photolysis is not a net
+  odd-oxygen sink. Measured on He-O₂, φ=0.05, nbundle=20: the monitor's last
+  pre-kick snapshot is 11.0e18 cm⁻³, the returned `rs.O3` is 0.096e18, a factor
+  of 115. Identical for `fast_rhs` true and false, so it long predates the
+  speed-up. The kick schedule now excludes the final tstop, leaving one pulse
+  interval of field-free relaxation, so the returned state is the one every
+  caller assumes. **The monitor histories were always right** (they snapshot
+  pre-kick), which is why the air runs' O₃(z) plots looked sane while the
+  calibration's `maximum(rs.O3)` did not.
+- **Bug in the same three lines: `condition` indexed `tstops[ni]` unguarded**, so
+  any `tmax` that is not an exact multiple of `pulse_dt` threw `BoundsError`
+  once the solver stepped past the final tstop. Now bounds-checked. (This is why
+  no run had ever been given a non-commensurate tmax.)
+- **`nbundle` must satisfy f·nbundle ≪ 1, where f is the per-pulse photolysis
+  fraction (0.12 downstream).** The saturation fix makes the arithmetic right,
+  but bundling 20 pulses still applies 1−0.88²⁰ = 92 % of the ozone's photolysis
+  in a single instant and then lets it recover over 20 ms. The real system never
+  loses 92 % of its ozone at once. So `nbundle` ≲ 2 for these cases, not 20 —
+  which costs 10–20x, roughly offset by the 6.3x solver speed-up. Every
+  nbundle=20 result so far is affected.
+- **Live-optics φ calibration (8 s, tol=0.1, He-O₂ 12 bar / 2.5 µJ / 22 cm),
+  reading the MONITOR (the returned-state bug above makes the printed "peak O3"
+  column of these runs wrong):** at φ=0.05 the monitor's peak ozone plateaus at
+  15.9e24 m⁻³, already 1.7x ABOVE the paper's 9.3e24 target, and the rise is
+  slower than frozen optics but still fast — 50 % at 0.2 s, 90 % at 0.64 s, 99 %
+  at 1.2 s, against the paper's ~5 s. The RDW centroid jumps 255 → 312 nm within
+  the first snapshot and then sits there, so the band does leave the Hartley
+  region as predicted, but it does so in ~0.1 s rather than over seconds. Only
+  13–16 UPPE re-solves in 8 s. **Re-run needed with nbundle ≤ 2 and the kick-schedule
+  fix before drawing a φ from this.**
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
   counted in `Rates.jl` (each channel carried the total rate).
 
