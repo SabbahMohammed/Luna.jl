@@ -526,6 +526,72 @@ Dropbox `PhD/Ozone paper/images/side/`.
   chemistry), these runs could not have revealed it. Re-running at tol=0.01,
   101 nodes. A drift metric sensitive to spatial redistribution, not just
   composition, is probably the right longer-term fix.
+- **tol=0.01 is not viable**: 217 UPPE solves for 1.4 simulated seconds,
+  extrapolating to ~77 h for 150 s. Killed. The drift metric is dominated by the
+  fast initial ozone build, so tightening it globally just re-solves the opening
+  transient to death. Needs a metric that is loose early and tight once ozone
+  plateaus, or one keyed to spatial redistribution.
+
+**Experimental constraints from the user's OneNote (2026-09-08), and what they do
+to the model.** Two pages: "Probe with oscillation" and "Nox investigation from",
+both 19 Sep 2025.
+
+- **The model overproduces ozone by ~10x, and TWO independent measurements say
+  so.** (i) The pump spectrum at 800 nm is constant through the oscillation, so
+  the soliton dynamics are unchanged. But ozone's index contribution is only
+  weakly dispersive — at the model's 1.3 % ozone, Δn at 800 nm is 3.86e-5, which
+  is **14.6 % of (n_air − 1)** — so the model's ozone would rewrite the IR
+  dynamics completely. Holding the IR index perturbation to a few percent caps
+  ozone at 0.1–0.3 %. (ii) "No visible sign for absorption around 650 nm": the
+  Chappuis band (σ = 3.67e-21 cm² at 650 nm, in Luna's own index) gives 0.4–1.0 dB
+  at the model's column, which should be plainly visible. Below 0.1 dB caps the
+  column at 6.3e18 cm⁻², a mean of 0.19 %. Both bounds agree; the model runs at
+  0.78–1.3 %. NOTE: still to confirm whether the 650 nm page is transmission or
+  side-scattering — the dB figures assume transmission through the full 22.5 cm.
+- **Even at the bounded ozone the band still goes dark**: 0.15 % gives tens of
+  optical depths at 268 nm. What it does NOT do is drag phase-matching to 330 nm,
+  which is exactly the failure mode of the runs above.
+- **Panel (a) of "Probe with oscillation" is a pump-PROBE absorption measurement,
+  not the RDW** (probe at the same rep rate, ~100 ns after the pump; the void at
+  ~400 nm is the anti-resonant fibre's non-guided resonance band). This is the
+  most diagnostic data available, because O₃ and NO₂ look nothing alike there:
+
+  | λ (nm) | 280 | 300 | 320 | 340 | 360 | 450 |
+  |---|---|---|---|---|---|---|
+  | O₃ (dB at model column) | 382 | 42 | 2.9 | 0.12 | 0.01 | 0.02 |
+  | NO₂ (dB at model column) | 0.016 | 0.039 | 0.074 | 0.11 | 0.15 | 0.13 |
+
+  Ozone prints a knife-edge (×300 between 300 and 340 nm; model edge at ~327 nm),
+  NO₂ a flat broad hump that is invisible at model levels. So: the edge position
+  gives the column; the optical depth at 315–325 nm is linear in it and should
+  breathe if ozone is what oscillates; any probe light below 300 nm is a third
+  independent bound. A broad 350–500 nm hump instead would mean NO₂ far above
+  anything the network makes. Figure: `examples/oscillation/probe_prediction.png`.
+- **The ~100 ns probe delay is a direct measurement of the per-pulse photolysis
+  fraction.** O + O₂ + M → O₃ at 6 bar air runs at 2.87e6 s⁻¹, i.e. 1/e in 348 ns,
+  so at 100 ns only **25 % has reformed** — the probe samples the gas with ~75 %
+  of the photolysed odd oxygen still atomic. The ozone deficit it sees is
+  therefore ≈ 0.75·f, and f = 0.12 predicts a ~9 % dip in Huggins-band absorption
+  between probe-delay and between-pulse conditions. That is a direct test of the
+  single number driving the whole model.
+- **Why tripling η did nothing, and what the real knob is.** Ground-state atomic
+  N is a NOx SINK here, not a source. Pseudo-first-order fates of one N atom at
+  the model's own densities (NO 3.6e15, NO₂ 2.8e15, O₃ 1.2e18 cm⁻³):
+
+  | channel | rate (s⁻¹) | share |
+  |---|---|---|
+  | N + NO → N₂ + O (destroys an NO) | 1.09e5 | 75 % |
+  | N + NO₂ → N₂O + O (buries the N) | 3.35e4 | 23 % |
+  | N + O₂ → NO + O | 2.68e3 | 2 % |
+  | N + O₃ → NO + O₂ | 2.34e2 | — |
+
+  So a ground-state N is ~37x more likely to destroy an NO than to make one. Net
+  NOx per N atom: **+0.135 at f2D = 0.5, +0.481 at 0.7, +0.827 at 0.9, +1.0 at
+  1.0.** f2D is therefore ~7x more powerful than η over that range, and η = 0.1 vs
+  0.3 gave the same ozone column (2.65e19 vs 2.52e19 cm⁻²) precisely because the
+  extra nitrogen cancelled itself. **f2D was fixed at 0.5 arbitrarily; literature
+  for N₂⁺ + e⁻ dissociative recombination (Peterson 1998 branchings) supports
+  ~0.6–0.65.** Running f2D = 0.7 and 0.9 at η = 0.3 next.
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
   counted in `Rates.jl` (each channel carried the total rate).
 
