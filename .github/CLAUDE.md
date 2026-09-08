@@ -709,9 +709,49 @@ Every air result in `examples/oscillation/` predating this used 15.5 eV together
 source. That is *not* equivalent to raising the barrier, because the barrier also
 changes the **spatial profile** of the source (it concentrates it into the small region
 where the intensity is highest) and its **energy scaling** (order 6.7 → 12.0). The
-N₂ source moves with it: at 6 bar / 2.2 µJ the O₂ source falls 1.20e18 → (21 eV) and
-the N₂ source with it, so the NOx supply — the thing the whole oscillation argument
+N₂ source moves with it, so the NOx supply — the thing the whole oscillation argument
 turns on — needs re-measuring, not rescaling.
+
+Measured at the 6 bar oscillation parameters (22.5 cm, 30 fs, `sixbar_recalibrated.jl`),
+with the source columns in cm⁻² of atoms per pulse:
+
+| E (µJ) | I_peak (W/cm²) | z_compress | UV frac | RDW | O₂ src (21 eV) | N₂ src (21 eV) | max f(O₃) |
+|---|---|---|---|---|---|---|---|
+| 2.0 | 1.40e14 | 7.84 cm | 0.174 | 268.2 nm | 1.89e14 | 7.09e14 | 0.403 |
+| 2.2 | 1.43e14 | 7.39 cm | 0.185 | 268.5 nm | 2.20e14 | 8.28e14 | 0.449 |
+| 2.5 | 1.48e14 | 7.04 cm | 0.193 | 268.5 nm | 4.46e14 | 1.68e15 | 0.520 |
+
+At 2.5 µJ the old barrier gave an O₂ source of 1.78e18, so the recalibration is a factor
+**3990** here. Naive steady state, source over per-pulse pump destruction:
+4.46e14 / 0.52 = **8.6e14 cm⁻²**, versus ~3.4e18 before. Spread over the whole 22.5 cm
+that is a fraction 2.6e-7; concentrated into ~1 cm around the compression point it is
+~6e-6. Compare the switch below — this may now be *too little* ozone to modulate the
+RDW, which would be the opposite failure to the one just fixed. `rdw_energy_match.jl`
+is the test.
+
+**Red flag on `:N2_diss`.** With both barriers at 21.0 eV, N₂ is 3.76× more abundant
+than O₂, so the nitrogen source is 3.8× the oxygen source — the model now makes N atoms
+faster than O atoms. That is almost certainly wrong, and it points the opposite way to
+the user's suggestion of lowering `:N2_diss` to 15.5 eV, which would make it worse by
+another ~1e4. Physically N₂ should sit *above* O₂: stronger bond (9.79 vs 5.12 eV) and
+higher ionisation potential (15.58 vs 12.07 eV). Left unchanged pending an observable.
+
+### Ozone back-action on the pump is weak; the switch is pure absorption
+
+Scanning uniform ozone through the 6 bar / 2.5 µJ propagation:
+
+| O₃ fraction | I_peak | z_compress | UV frac | O₂ src ratio |
+|---|---|---|---|---|
+| 0 | 1.482e14 | 7.04 cm | 0.194 | 1.000 |
+| 1e-5 | 1.482e14 | 7.04 cm | 0.177 | 0.999 |
+| 1e-4 | 1.481e14 | 7.04 cm | 0.097 | 0.995 |
+| 3e-4 | 1.480e14 | 7.04 cm | 0.068 | 0.985 |
+| 1e-3 | 1.475e14 | 7.04 cm | 0.059 | 0.952 |
+
+So ozone attenuates the RDW strongly (5.2 dB by 1e-3) but barely touches the pump:
+the compression point does not move at all and the O₂ source falls only 5 % at 1e-3.
+**There is no useful optical feedback from ozone onto its own source.** Any oscillator
+has to close its loop through the chemistry, not through the compression.
 
 **`:N2_diss` remains at 21.0 eV and is now UNCONSTRAINED by any measurement.** It was
 21 before this change and is unchanged; the user has suggested it might be 15.5. It was
