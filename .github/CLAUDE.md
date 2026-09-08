@@ -1012,7 +1012,13 @@ removes it and the curve matches.
 ozone's real ionisation potential (12.53 eV) on the argument that ionised ozone
 dissociates anyway; that argument may be fine but the *number* is not, and it should be
 calibrated the same way `:O2_diss` just was. Rough size of the correction: the sink must
-shrink ~10-20×, which at these intensities (order ~7-8) is **+1.5 to 2 eV**. Not yet
+shrink ~10-20×. Taking `Dissfrac_O3` from 0.31 to ~0.03 needs the rate down ~12×; the O₂
+barrier scan measured **~5.9× per eV** at 20-23 eV, and the Ip^0.5 scaling of the ADK
+exponent softens that to ~3.9× per eV at 12.5 eV, giving **~1.8 eV**. So the barrier would
+go **12.53 → ~14.3 eV**. Treat this as an order-of-magnitude guide to the SIZE of the
+correction, not a value to adopt: it extrapolates a sensitivity measured at a different
+barrier and a different saturation level, and the "10-20×" target is itself a judgement.
+Not yet
 fitted — it needs the same barrier scan against this curve, which is cheap now that
 `PropAir`'s `diss_scan` exists.
 
