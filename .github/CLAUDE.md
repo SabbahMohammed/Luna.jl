@@ -654,14 +654,41 @@ So f2D = 0.5 / η = 0.1 is ~20x short and f2D = 0.9 / η = 0.3 is ~5x over.
 f2D ≈ 0.7, η ≈ 0.2. Note NO₂ responds superlinearly (99x for an 18x change in
 the product of net-NOx-yield and η) because titration feeds back on itself.
 
-**Panel (b): the RDW switches ON and OFF at a FIXED ~280 nm. It does not move.**
-Bursts at roughly t = 130, 250, 400, 570, 740, 900, 1090, 1270 s — period growing
-from ~120 s to ~190 s across the record, so this is a threshold oscillator riding
-a slow drift, not a fixed limit cycle. Square tops, dwell ~60–80 s high and
-~80–110 s low. **Every 1-D run in this repo instead drags the centroid to
-330–336 nm and parks it.** That is a third, independent signature of the ozone
-excess: at the true ozone level the index perturbation is too small to move
-phase-matching, so the band can only be extinguished and restored.
+**The full time sequence, from the user's 6 bar figure with a zoomed first-10 s
+panel (this CORRECTS an earlier reading in this file that said the band never
+moves):**
+
+1. **t ≈ 0–1.5 s** — no RDW.
+2. **t ≈ 1.5–5 s** — RDW appears at 280 nm and **sweeps to ~330 nm**, driven by
+   ozone accumulating at the compression point and moving the phase-matching.
+3. **t ≈ 5–130 s** — dark. Attributed to O₃ absorption.
+4. **t ≈ 130 s onward** — oscillation, bursts **at a FIXED ~280 nm**, period
+   ~80–100 s at 6 bar. (In the 1400 s record at slightly different conditions:
+   bursts at 130, 250, 400, 570, 740, 900, 1090, 1270 s, period growing 120 → 190 s
+   — a threshold oscillator riding a slow drift, square tops, dwell ~60–80 s high
+   and ~80–110 s low.)
+
+**The model reproduces phase 2 correctly and is ~10x too fast**, which is the
+same factor the Chappuis null and the constant 800 nm spectrum give
+independently. Model centroid at φ = 0.05, 6 bar, f2D = 0.5, η = 0.1:
+
+| t (s) | 0.00 | 0.01 | 0.21 | 0.37 | 1.0 | 3.5 | 5.1 |
+|---|---|---|---|---|---|---|---|
+| centroid (nm) | 272.8 | 314.1 | 324.7 | 332.2 | 326.6 | 330.2 | 328.1 |
+| UV out (dB) | 0 | −12.8 | −19.8 | −21.3 | −23.7 | −19.3 | −17.9 |
+
+i.e. 273 → 332 nm in 0.37 s against the experiment's ~3.5 s. **So the relocation
+is NOT a model defect — it is the experiment's own phase 2, played 10x fast.**
+Three independent measurements now agree on the same factor of ~10, which makes
+it a calibration correction, not a mystery: either φ ≈ 0.005 rather than 0.05, or
+a missing sink removing 90 % of the ozone.
+
+**What the model does NOT reproduce is phases 3 and 4** — the return of
+phase-matching to 280 nm and the sustained oscillation there. Returning to 280 nm
+requires the ozone AT THE COMPRESSION POINT to be cleared back to near zero. The
+125 s dark stretch (phase 3) is plausibly the NOx accumulation time before
+titration can do that, which ties directly to the NO₂ calibration above and to
+the f2D analysis (net NOx yield only 0.135 per N atom at f2D = 0.5).
 
 **The probe's ~100 ns delay is itself a measurement of the per-pulse photolysis
 fraction.** O + O₂ + M → O₃ reformation vs pressure, and how much has reformed
@@ -725,6 +752,16 @@ photolysed odd oxygen still atomic.
   fine and 1e-30 bar is fine. `PropAir.safe_partial_pressure` now snaps anything
   below 1e-20 bar to zero. Only appeared at 2 bar; the 6 bar runs never drove a
   species that low.
+
+**Current best-guess parameter set, and the run testing it (2026-09-08).**
+Combining every constraint above: ozone accumulates ~10x too fast (three
+measurements) and NOx accumulates too slowly (the probe bracketing), so
+**φ = 0.005, f2D = 0.7, η = 0.2**. Running
+`air_1d_live.jl 400 0.7 0.2 1.0 0.005 2 0.1 201`. The test is the full sequence:
+a 280 → 330 nm sweep taking ~3.5 s rather than 0.37, a dark stretch of order
+100 s, then a return to 280 nm. Anything that reproduces phases 1–3 is already
+past every previous run; phase 4 is the real target. Note a 400 s run at
+~150 s/s is ~17 h, so read the Monitor PNG/JLD2 as it goes rather than waiting.
 
 ---
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
