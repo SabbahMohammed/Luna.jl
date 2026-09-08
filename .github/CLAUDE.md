@@ -596,6 +596,50 @@ is the single most load-bearing fact in this file.**
 
 ---
 
+## THE PERIOD IS NOT A TARGET — and its fragility is a clue (2026-09-08)
+
+**Do not fit the oscillation period.** It is not reproducible even between nominally
+identical experiments; a slight change in coupled energy or fill pressure moves it. Fitting
+to it is fitting to noise. The target is that **the oscillation exists**, robustly, with the
+right switching depth and the anti-phase relation between pump and probe.
+
+**The irreproducibility is itself a measurement, and it redirects the search.**
+
+| | period | amplitude |
+|---|---|---|
+| Hopf bifurcation | robust — set by the linear eigenfrequency | fragile — grows as √(distance from threshold) |
+| Relaxation / SNIC | fragile — set by slow passage, diverges near threshold | robust — set by the fast branches |
+
+The experiment reports **fragile period, robust amplitude**: the relaxation column. So the
+object to look for is **slow–fast structure with hysteresis between two branches**, not a
+Hopf bifurcation of a smooth limit cycle, and the right analysis is nullclines and
+slow-manifold geometry rather than linear stability about a fixed point.
+
+This also explains the earlier negative result: `reduced_switch_model.jl` scanned twelve
+parameter sets looking for a limit cycle, found every trajectory relaxing monotonically to
+a steady state, and concluded no oscillation. It was looking for the wrong object. A
+relaxation oscillator needs an N-shaped (or otherwise folded) nullcline; the finding that
+the destruction rate rises monotonically — f ∝ O₃^−0.55, so f·O₃ ∝ O₃^0.45 — is precisely
+the statement that **the fold is missing**. Finding what folds that nullcline is the
+problem, and it is a sharper question than "does it oscillate".
+
+## SECOND DATA LOCATION: the anti-phase pump-probe experiment (2026-09-08)
+
+```
+~/Library/CloudStorage/Dropbox-Heriot-WattUniversityTeam/RES_EPS_Lupo/Projects/Ozone/
+  phd/spec/air/dispersive_wave_amplification_and_deamplification/probe/30-05-2019/
+  another set of data/
+```
+
+`double_spectrum_timeseries_*.h5` — two spectrometers recording simultaneously (`hisol`
+and `pcf`), which is the source of the two anti-phased traces. Pre-rendered PNG crops name
+both their wavelength and time windows, so they index the h5 cheaply.
+
+Open, and to be asked rather than assumed: the filenames say **argon**
+(`200mbarAr_Hisol`, `6barAr_pcf`) while the directory path says **air**; which
+spectrometer is pump and which is probe; and why the time windows run to **40000 s** when
+the oscillation has been discussed at ~1400 s.
+
 ## FIXED EXPERIMENTAL PARAMETERS — never fit these (2026-09-08)
 
 These are measured properties of the apparatus, identical across every fibre and
