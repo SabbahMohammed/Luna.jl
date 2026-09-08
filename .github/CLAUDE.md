@@ -611,8 +611,30 @@ moves them is a fit that has gone wrong:
 | centre wavelength | 800 nm | |
 
 Fibre length is 22.5 cm for the 6 bar air / N₂-O₂ oscillation experiments and
-**33 cm** for the 2 bar 255 nm probe-transmission experiment. Pressure and pulse
-energy are stated per experiment.
+**33 cm** for the 2 bar 255 nm probe-transmission experiment. Pressure is stated per
+experiment.
+
+**Pulse energy needs care: the number in a filename is not always the energy in the
+fibre.** The convention differs per dataset folder, and getting it wrong is silent —
+the ADK source runs at ~5th order in energy at 6 bar, so a factor 1.8 in energy is a
+factor ~20 in ozone, and the result looks plausible rather than erroneous.
+
+| dataset | labelled | **use in simulation** |
+|---|---|---|
+| `N2-O2/6bar_4uJ_89.5deg_225mm_fiber10_raw_60000frames.h5` | 4 µJ | **2.2 µJ** |
+| `air_results/air_6bar_2.2uJ_22.5cm.h5` | 2.2 µJ | **2.2 µJ** |
+
+The 4 → 2.2 µJ mapping absorbs coupling loss and other transmission factors that are
+deliberately out of scope for the model. Apply it; do not try to derive it. Every other
+folder's convention is unknown and must be asked about, not inferred.
+
+Those two files are byte-identical in size (488,542,540), a week apart in July 2020, same
+6 bar / 22.5 cm / 60000 frames — so at the same in-fibre energy they differ in **one
+variable only, synthetic N₂/O₂ versus real air**, isolating argon, water and CO₂.
+
+Data lives at `~/Library/CloudStorage/Dropbox-Heriot-WattUniversityTeam/RES_EPS_Lupo/
+Projects/Ozone/Ozone paper/Figures`; every folder there carries its own `plot.ipynb`,
+which is the provenance chain from h5 to published panel.
 
 If the model disagrees with data, the thing to move is a *model* parameter — the
 effective ADK barrier, a rate coefficient, a branching ratio — not the apparatus.
