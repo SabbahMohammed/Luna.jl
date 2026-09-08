@@ -756,6 +756,44 @@ fitting a pre-coupling pulse energy.
 This supersedes the earlier note that "the slow decay in the probe is due to the source
 decaying away", which could be read as the ozone/NOx source. It is the optical source.
 
+## WHERE THE DOCUMENTS AND DATA ARE (2026-09-08)
+
+```
+THESIS   ~/Library/CloudStorage/Dropbox-Heriot-WattUniversityTeam/Mohammed Sabbah/
+           PhD/PhD_Thesis/MSabbah_PhD_Thesis_Final_submission.pdf
+         144 pp, 10 Feb 2022.  Ozone work is CHAPTER 7.
+
+PAPER    ~/Library/CloudStorage/Dropbox-Heriot-WattUniversityTeam/RES_EPS_Lupo/
+           Projects/Ozone/Ozone paper/Ozone_v20230615_Chris.pdf   (15 Jun 2023, latest)
+
+FIGURES  ~/.../Projects/Ozone/Ozone paper/Figures/
+         18 h5, 20 ipynb, 12 pdf in nine topic folders; every folder has its own
+         plot.ipynb, which is the provenance chain from h5 to published panel.
+
+PROBE    ~/.../Projects/Ozone/phd/spec/air/
+           dispersive_wave_amplification_and_deamplification/probe/30-05-2019/
+           another set of data/          (the anti-phase pump-probe experiment)
+
+X-SECT   ~/.../Projects/Ozone/data_for_nature/linear/
+         Serdyuchenko/Gorshelev ozone cross-sections plus real and imaginary parts
+         of the index -- the provenance of Luna's ozone refractive index.
+
+NOTEBOOK ~/.../Projects/Ozone/Ozone_notebook.pdf     (lab notebook export)
+
+EXTRACTS LupoAirOsc/targets/raw/    already-parsed traces; do NOT re-read the 400 MB h5
+```
+
+**Use exactly these versions.** Older ones sit beside them — the thesis directory also has
+`_First_submission` (Sep 2021), `_with_corrections` (8 Feb 2022) and a 141-page
+`corrections_DN` (Jan 2022); the paper directory also has `draft0.pdf` and `draft1.pdf`
+(Aug 2020). Quoting an older version as ground truth is a silent error.
+
+**The paper's figures mix measurement with the paper's own model output**, and captions do
+not always distinguish them. A number that turns out to be a simulation result is not
+ground truth — it is a prior model's answer, and that model's ozone is now known to be
+~9200× high. Record for every target whether it is measured or simulated; when a figure
+does not say, ask.
+
 ## FIXED EXPERIMENTAL PARAMETERS — never fit these (2026-09-08)
 
 These are measured properties of the apparatus, identical across every fibre and
