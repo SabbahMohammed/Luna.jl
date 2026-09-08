@@ -596,68 +596,88 @@ is the single most load-bearing fact in this file.**
 
 ---
 
-## THE WAVEFORM CONFIRMS A RELAXATION OSCILLATOR (2026-09-08)
+## THE ANTI-PHASE DATASET, MEASURED FROM THE h5 (2026-09-08)
 
-The two-trace figure (`pcf` = pump, `hisol` = probe; x-axis in *slices*, 0–25000) settles
-the question that the fragile-period argument only inferred. **All numbers below are read
-off a plot and are PROVISIONAL** — A1 re-derives them from the h5. They are recorded
-because the qualitative shape is unambiguous and it redirects the search.
+`double_spectrum_timeseries_61deg_200mbarAr_Hisol_4uJ_6barAr_pcf.h5`, read directly.
+**These supersede the provisional numbers read off the plot.** Extracted traces are saved
+at `LupoAirOsc/targets/raw/antiphase_61deg_200mbarAr.tsv` (25000 rows: t, RDW band, driver
+band, probe band) so nobody re-reads 400 MB. Plots: `examples/antiphase61_windows.png`,
+`examples/antiphase61_spectra.png`.
 
-### The pump waveform is square, not sinusoidal
+### The time base is in the file — it was never uncalibrated
 
-Fast rise → **flat top at ~0.85** → fast fall → **long flat bottom at ~0.09**. That is a
-relaxation waveform: two well-separated branches with fast switching between them. A Hopf
-bifurcation near threshold produces a sinusoid; this is not one. **The visual evidence and
-the fragile-period argument agree**, so the target object is a slow–fast system with
-hysteresis, and nothing in the search should be aimed at a smooth limit cycle.
+`timestamps` row 1 is a **Unix epoch in seconds**; row 2 the same in µs. First sample
+1559238010.169 = 2019-05-30 18:40:10, last 1559238967.098 = 18:56:07, which matches the
+`params/timestamp` string exactly. Both spectrometers start within **16 ms** of each other.
 
-- Switching depth 0.85 / 0.09 ≈ 9.4 → **9.7 dB**, matching the quoted number.
-- Duty cycle roughly **30 % high**, which is a *shape* target and a much stronger constraint
-  than a period. A relaxation oscillator's duty cycle is set by the ratio of the two slow
-  branch traversal times, so it directly constrains the mechanism.
+> **956.93 s over 25000 slices → 0.0383 s per slice, 26.12 Hz.**
 
-### The period drifts by more than 2× WITHIN one run
+Not 40000 s, and not the ~600 s estimated. The notebook comment "this does not represent
+the actual time" is wrong: it does. Use row 1.
 
-Successive pump maxima sit near slices 3200, 5200, 8400, 12300, 16400, 20400, 24700 —
-intervals of roughly **2000, 3200, 3900, 4100, 4000, 4300**. The period is not merely
-irreproducible between experiments; it is **not stationary inside a single experiment**,
-lengthening monotonically as the run proceeds.
+### Channel naming is INVERTED relative to the brief — flagged, not resolved
 
-This is stronger than the earlier statement and settles the matter: **the period is not a
-target under any circumstances.** Consistent with the source decaying slowly, and with a
-relaxation oscillator whose slow branch takes longer to traverse as the drive weakens.
+Identified from the spectra, independent of the group names:
 
-### The amplitude locks after 2–3 cycles while the period keeps drifting
+| group | spectrum | physically |
+|---|---|---|
+| `hisol` | 800 nm supercontinuum 600-1080 nm + narrow **280 nm** band that switches 800 → 7 counts | the **pump / RDW** |
+| `pcf` | isolated band at **~370 nm** (8e3 counts) + residual 800 nm, nothing else | the **probe** |
 
-The first two pump maxima reach only ~0.25 and ~0.41; from the third onward every maximum
-sits at ~0.85. So the amplitude has a short transient and then **pins to a constant plateau
-while the period continues to drift** — the relaxation signature, now visible *within one
-run* rather than only between runs. Plateau level and switching depth are robust targets;
-period is not.
+The user's brief says *hisol = probe, pcf = pump*, and the figure's legend agrees with the
+brief — but the oscillating RDW sits in the group named `hisol`. **Do not resolve this by
+choosing**; the physics is unambiguous and only the labels are in doubt. Note the probe band
+at ~370 nm independently corroborates the earlier "THE PROBE IS AN NO2 MONITOR" section.
 
-### Slice → time, and what it implies
+### THE DRIVER SPECTRUM IS IDENTICAL IN BOTH STATES: 0.00 dB
 
-25000 slices ≈ 600 s (user) gives **~24 ms per slice, ~42 Hz** acquisition. Independently
-consistent with the `60000frames` files if those run ~1400 s. Period 3200–4300 slices then
-reads as **~77–103 s**, matching the "~100 s" quoted from the spectrograms. A1 must still
-establish the calibration properly rather than adopting this.
+Median over the RDW-high slices versus the RDW-low slices, after amplitude locking:
+
+| band | HIGH | LOW | difference |
+|---|---|---|---|
+| RDW 220-320 nm (`hisol`) | 2.026e4 | 3269 | **+7.92 dB** |
+| driver 600-1100 nm (`hisol`) | 7.710e5 | 7.716e5 | **−0.00 dB** |
+| probe 345-440 nm (`pcf`) | 2.084e5 | 3.276e5 | **−1.96 dB** |
+
+**This is the single strongest constraint in the dataset.** The driver supercontinuum is
+unchanged to two decimal places between the RDW-on and RDW-off states. The soliton
+dynamics, the self-compression, and therefore the RDW *generation* are identical in both
+phases. So **the RDW is generated every shot and then removed** — the switch is
+post-generation attenuation, not a change in generation or phase matching.
+
+That kills a whole class of candidate mechanisms (anything acting through the compression
+point, the pulse energy, or the dispersion at 800 nm) and points squarely at Hartley-band
+absorption of an already-generated RDW. It also explains why the ozone back-action scan
+found the compression point immobile: it should be.
+
+Consistency check to do: 7.92 dB of in-band absorption over the post-compression length,
+at σ(O₃) ≈ 5.5e-18 cm² near 282 nm, needs a column of ~4.1e17 cm⁻² downstream. Compare the
+model's 8.6e14 cm⁻² naive steady state at 6 bar — **~500× short**, which is the gap to close.
+
+### The oscillation, measured
+
+- **Switch depth +7.92 dB** in the 220-320 nm sum; ~20 dB at the band peak (800 → 7 counts),
+  since the band sum carries background. Quote the in-band figure.
+- **Duty cycle 41 %** high, after locking. This is a *shape* target and constrains the ratio
+  of the two slow branch traversal times.
+- **Anti-phase confirmed quantitatively**: correlation of log(RDW) against log(probe) over
+  the locked region is **−0.772**.
+- **Period 147, 156, 159, 160 s** (Schmitt-triggered rising edges at 302, 449, 605, 764,
+  924 s), lengthening ~9 % across four cycles. The first 285 s interval is the locking
+  transient — the first two maxima never reach full amplitude.
+- The waveform is **square**: flat top, flat bottom, fast transitions. Relaxation, not Hopf.
+  Amplitude locks after 2-3 cycles while the period keeps drifting.
+
+Note the period here (~150 s) is not the ~100 s quoted from the 6 bar spectrograms. Since
+period is not a target this changes nothing, but do not carry one dataset's period to
+another.
 
 ### Detrend the probe MULTIPLICATIVELY
 
-The probe's mean falls from ~0.5 to ~0.07 across the run (mostly the probe source decaying
-before the fibre — not chemistry). Its *absolute* modulation shrinks with it, but the
-*ratio* is roughly preserved: early swings ~0.20→0.55 (2.75×), late ~0.07→0.15 (2.1×).
-
-So **divide by the envelope, do not subtract it.** An additive detrend would leave a
-spurious amplitude decay in the residual and invite the model to explain it with chemistry.
-
-### Pulse energy for this dataset — TO CONFIRM
-
-The filename says 4 µJ; the user described this figure as "6 bar air, 2.5 µJ". Combining
-those gives **4 µJ label → 2.5 µJ in-fibre for the 30-05-2019 probe experiment**, which is
-a *different* mapping from `N2-O2/`'s 4 → 2.2 µJ. Plausible (different day, different
-coupling) but inferred by combining two statements, so it needs a yes/no before any target
-uses it.
+The probe's slow decay is mostly the probe source decaying before the fibre, not chemistry.
+Its absolute modulation shrinks with the mean while the *ratio* is roughly preserved, so
+divide by the envelope rather than subtracting it; an additive detrend leaves a spurious
+amplitude decay for the model to explain with chemistry it does not have.
 
 ## THE PERIOD IS NOT A TARGET — and its fragility is a clue (2026-09-08)
 
