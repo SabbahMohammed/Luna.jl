@@ -615,19 +615,38 @@ band, probe band) so nobody re-reads 400 MB. Plots: `examples/antiphase61_window
 Not 40000 s, and not the ~600 s estimated. The notebook comment "this does not represent
 the actual time" is wrong: it does. Use row 1.
 
-### Channel naming is INVERTED relative to the brief — flagged, not resolved
+### THE SPECTROMETER NAMING IS SWAPPED — identify channels, never trust the names
 
-Identified from the spectra, independent of the group names:
+Confirmed by the user: **the acquisition software labels the two spectrometers the wrong
+way round.** In this file the group called `hisol` holds the **pump**, and `pcf` holds the
+**probe** — the opposite of the names. Treat it as systematic across this rig's
+`double_spectrum_timeseries_*` files, and *still verify per file*.
 
-| group | spectrum | physically |
-|---|---|---|
-| `hisol` | 800 nm supercontinuum 600-1080 nm + narrow **280 nm** band that switches 800 → 7 counts | the **pump / RDW** |
-| `pcf` | isolated band at **~370 nm** (8e3 counts) + residual 800 nm, nothing else | the **probe** |
+Two independent tests, both cheap. Run the first; fall back to the second.
 
-The user's brief says *hisol = probe, pcf = pump*, and the figure's legend agrees with the
-brief — but the oscillating RDW sits in the group named `hisol`. **Do not resolve this by
-choosing**; the physics is unambiguous and only the labels are in doubt. Note the probe band
-at ~370 nm independently corroborates the earlier "THE PROBE IS AN NO2 MONITOR" section.
+**1. Onset order (primary).** The probe is unblocked first and the pump only afterwards, so
+the run captures the full dynamics from the pump's first shot. Sum each channel over
+200-1100 nm per frame, find the first frame above `dark + 0.2 × (working level − dark)`:
+**the channel that comes on FIRST is the probe.**
+
+| file | `pcf` onset | `hisol` onset | verdict |
+|---|---|---|---|
+| `61deg_200mbarAr` | **12.09 s** | 17.09 s | 5.0 s gap — decisive, `pcf` = probe |
+| `65deg_100mbarAr` | 12.48 s | 12.45 s | 30 ms — **inconclusive**, use test 2 |
+
+So the test works only when there is a real gap. Require ≳1 s before trusting it.
+
+**2. Spectral signature (fallback and cross-check).**
+
+| | spectrum |
+|---|---|
+| **pump** | broad 600-1100 nm supercontinuum **plus** a deep-UV band near **280 nm** that switches |
+| **probe** | an isolated band near **370 nm** and little else, plus residual 800 nm |
+
+On the 61deg file both tests agree with each other and both contradict the group names,
+which is why the naming is now known to be swapped. The probe band at ~370 nm also
+independently corroborates the earlier "THE PROBE IS AN NO2 MONITOR" section — that was
+derived from a completely separate argument.
 
 ### THE DRIVER SPECTRUM IS IDENTICAL IN BOTH STATES: 0.00 dB
 
