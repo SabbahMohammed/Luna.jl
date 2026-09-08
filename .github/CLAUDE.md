@@ -596,6 +596,69 @@ is the single most load-bearing fact in this file.**
 
 ---
 
+## THE WAVEFORM CONFIRMS A RELAXATION OSCILLATOR (2026-09-08)
+
+The two-trace figure (`pcf` = pump, `hisol` = probe; x-axis in *slices*, 0–25000) settles
+the question that the fragile-period argument only inferred. **All numbers below are read
+off a plot and are PROVISIONAL** — A1 re-derives them from the h5. They are recorded
+because the qualitative shape is unambiguous and it redirects the search.
+
+### The pump waveform is square, not sinusoidal
+
+Fast rise → **flat top at ~0.85** → fast fall → **long flat bottom at ~0.09**. That is a
+relaxation waveform: two well-separated branches with fast switching between them. A Hopf
+bifurcation near threshold produces a sinusoid; this is not one. **The visual evidence and
+the fragile-period argument agree**, so the target object is a slow–fast system with
+hysteresis, and nothing in the search should be aimed at a smooth limit cycle.
+
+- Switching depth 0.85 / 0.09 ≈ 9.4 → **9.7 dB**, matching the quoted number.
+- Duty cycle roughly **30 % high**, which is a *shape* target and a much stronger constraint
+  than a period. A relaxation oscillator's duty cycle is set by the ratio of the two slow
+  branch traversal times, so it directly constrains the mechanism.
+
+### The period drifts by more than 2× WITHIN one run
+
+Successive pump maxima sit near slices 3200, 5200, 8400, 12300, 16400, 20400, 24700 —
+intervals of roughly **2000, 3200, 3900, 4100, 4000, 4300**. The period is not merely
+irreproducible between experiments; it is **not stationary inside a single experiment**,
+lengthening monotonically as the run proceeds.
+
+This is stronger than the earlier statement and settles the matter: **the period is not a
+target under any circumstances.** Consistent with the source decaying slowly, and with a
+relaxation oscillator whose slow branch takes longer to traverse as the drive weakens.
+
+### The amplitude locks after 2–3 cycles while the period keeps drifting
+
+The first two pump maxima reach only ~0.25 and ~0.41; from the third onward every maximum
+sits at ~0.85. So the amplitude has a short transient and then **pins to a constant plateau
+while the period continues to drift** — the relaxation signature, now visible *within one
+run* rather than only between runs. Plateau level and switching depth are robust targets;
+period is not.
+
+### Slice → time, and what it implies
+
+25000 slices ≈ 600 s (user) gives **~24 ms per slice, ~42 Hz** acquisition. Independently
+consistent with the `60000frames` files if those run ~1400 s. Period 3200–4300 slices then
+reads as **~77–103 s**, matching the "~100 s" quoted from the spectrograms. A1 must still
+establish the calibration properly rather than adopting this.
+
+### Detrend the probe MULTIPLICATIVELY
+
+The probe's mean falls from ~0.5 to ~0.07 across the run (mostly the probe source decaying
+before the fibre — not chemistry). Its *absolute* modulation shrinks with it, but the
+*ratio* is roughly preserved: early swings ~0.20→0.55 (2.75×), late ~0.07→0.15 (2.1×).
+
+So **divide by the envelope, do not subtract it.** An additive detrend would leave a
+spurious amplitude decay in the residual and invite the model to explain it with chemistry.
+
+### Pulse energy for this dataset — TO CONFIRM
+
+The filename says 4 µJ; the user described this figure as "6 bar air, 2.5 µJ". Combining
+those gives **4 µJ label → 2.5 µJ in-fibre for the 30-05-2019 probe experiment**, which is
+a *different* mapping from `N2-O2/`'s 4 → 2.2 µJ. Plausible (different day, different
+coupling) but inferred by combining two statements, so it needs a yes/no before any target
+uses it.
+
 ## THE PERIOD IS NOT A TARGET — and its fragility is a clue (2026-09-08)
 
 **Do not fit the oscillation period.** It is not reproducible even between nominally
