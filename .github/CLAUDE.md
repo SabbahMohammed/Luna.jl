@@ -760,6 +760,88 @@ guessing at it would repeat the mistake this section exists to correct. Nitrogen
 its own calibration observable — the NO side-scattering lines (onset ~35 s) are the
 obvious candidate.
 
+## THE 255 nm CURVE IS MATCHED — and it took three corrections (2026-09-08)
+
+`examples/oscillation/probe255_match.jl` now reproduces the measured
+I/I₀(t) at 255 nm (2 bar air, 33 cm, 1.3 µJ, 30 fs) to within ~5 % over the full
+8 s, with **no free multiplier anywhere** — `diss_yield = 1`:
+
+| t (s) | model column | exp column | model I/I₀ | exp I/I₀ |
+|---|---|---|---|---|
+| 0.60 | 2.51e16 | 2.16e16 | 0.749 | 0.780 |
+| 1.67 | 6.94e16 | 7.14e16 | 0.450 | 0.440 |
+| 3.03 | 1.26e17 | 1.44e17 | 0.236 | 0.190 |
+| 4.99 | 2.06e17 | 2.14e17 | 0.093 | 0.085 |
+| 6.91 | 2.85e17 | 2.92e17 | 0.038 | 0.035 |
+| 7.85 | 3.23e17 | 3.40e17 | 0.024 | 0.020 |
+
+Settings: `diss_yield=1.0, n2_yield=0.0, wall=0 (WallParams()), o3_from_adk=false`,
+`:O2_diss = 21.0 eV`. One UPPE solve (frozen optics, justified above).
+
+**Three independent things were wrong, and all three had to be fixed together.**
+Each was masked by the others, which is why the indirect arguments only ever
+suggested "about 10×".
+
+### 1. The source: `:O2_diss` 15.5 → 21.0 eV (factor 9200)
+
+See the section above. Validated directly: with the two sinks below removed, the
+model gives 2.12e16 cm⁻² at t = 0.5 s against a measured 2.16e16 — a **2 % match on
+a number set by the source alone**, since nothing has had time to remove anything.
+
+### 2. The silica wall is essentially inert to O atoms: γ(O) ≲ 1e-5, not 1e-3
+
+`Rates.WallParams` had γ(O) = 1e-3. That is not a small correction here, because the
+pump re-dissociates its own ozone every pulse and the released O atoms then race:
+
+- reform ozone, O + O₂ + M at **3.19e5 s⁻¹** at 2 bar
+- die on the wall, γ·v̄/(2a) = **2.09e4 s⁻¹** at a = 15 µm
+
+So ~6 % take the wall each time, giving ~0.6 % column loss per pulse and equilibrium
+in ~160 pulses. Measured column instead rises for 8000 pulses, bounding per-pulse loss
+at <1.2e-4. Scan (nitrogen off, 8 s plateau):
+
+| wall scale | plateau (cm⁻²) |
+|---|---|
+| 1.0 | 2.9e15 |
+| 0.2 | 1.45e16 |
+| 0.02 | 9.5e16 (still rising) |
+| 0 | 1.52e17 (still rising) |
+
+Plateau goes exactly as 1/γ, which confirms the mechanism. **Physically this is a
+passivated surface** — a fibre that has been sitting in ozone and atomic oxygen for
+minutes is not clean silica, and recombination coefficients drop orders of magnitude
+on oxidised/passivated SiO₂. Note the existing docstring already bounded γ(O₃) < 1e-9
+from the He-O₂ 700 s persistence; the same argument evidently applies to O.
+
+### 3. `:O3_diss = 12.53 eV` is far too low — the pump eats its own ozone
+
+Even with zero wall the model saturated at 1.52e17 against 3.40e17. The residual sink
+is **Chapman, amplified by the pump**: each pulse re-dissociates ~30 % of the ozone
+(Dissfrac_O3 peaks at 0.31 here) into O atoms sitting *inside* the ozone cloud. Almost
+all reform ozone, but a fraction
+
+    k₃[O₃] / (k₁[O₂][M]) = 8e-15 × 3e16 / 3.19e5 = 7.5e-4
+
+instead runs O + O₃ → 2 O₂, killing **two** ozone each. That is ~4.5e-4 of the column
+per pulse, i.e. equilibrium near 9e16 — the right order. Setting `o3_from_adk=false`
+removes it and the curve matches.
+
+`o3_from_adk=false` is the *limiting* case, not the fix. `:O3_diss` is set equal to
+ozone's real ionisation potential (12.53 eV) on the argument that ionised ozone
+dissociates anyway; that argument may be fine but the *number* is not, and it should be
+calibrated the same way `:O2_diss` just was. Rough size of the correction: the sink must
+shrink ~10-20×, which at these intensities (order ~7-8) is **+1.5 to 2 eV**. Not yet
+fitted — it needs the same barrier scan against this curve, which is cheap now that
+`PropAir`'s `diss_scan` exists.
+
+### What is still open
+
+- `:N2_diss` remains unconstrained (see the red flag above). These runs used
+  `n2_yield = 0`. Once (2) and (3) are fixed, nitrogen's effect on THIS curve is
+  small, so this measurement does not pin it — it needs the NO side-scattering data.
+- The ~27th-order energy scaling of the paper's 1.2/1.3/1.4 µJ simulations is still
+  unexplained, and by the tunnelling bound above it cannot come from the source.
+
 ## THE PROBE IS AN NO2 MONITOR (2026-09-08) — read this before touching the chemistry
 
 This is the result that reorganises everything above. It comes from the user's
