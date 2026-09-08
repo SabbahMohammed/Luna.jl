@@ -486,6 +486,46 @@ Dropbox `PhD/Ozone paper/images/side/`.
   paper's 9.3e24 m⁻³ checkpoint" and sets `tevolve = 1`, which leans towards
   checkpoint — but this is worth one look at Sec. III E / Fig. 6b before
   building on it.
+- **First trustworthy air runs (2026-09-08): the model relaxes monotonically and
+  cannot oscillate.** 150 s, live optics, φ=0.05 (calibrated), nbundle=2, 201
+  nodes, f2D=0.5, wall×1, tol=0.1, at η = 0.1 and 0.3. ~6.5 h wall each
+  (150–162 s/s). First runs in which optics, ozone level and pulse bookkeeping
+  are all correct together. Result: **the RDW relocates 273 → 330 nm within ~1 s
+  and stays**, output −17 to −22 dB, for the whole 150 s. No return, no cycling.
+
+  | | η = 0.1 | | η = 0.3 | |
+  |---|---|---|---|---|
+  | t (s) | front (cm) | exit plug (cm) | front (cm) | exit plug (cm) |
+  | 13 | 5.96 | 9.56 | 5.29 | 9.56 |
+  | 52 | 4.28 | 6.53 | 2.59 | 5.40 |
+  | 108 | 3.04 | 5.51 | 2.02 | 4.39 |
+  | 150 | 2.93 | 4.61 | 2.14 | 3.71 |
+
+  ("front" = how far from the entrance ozone stays above 1e17 cm⁻³; "exit plug" =
+  the same measured back from the exit. Boundary-pinned nodes excluded.)
+  The steady state is an ozone plug at the entrance (0–3 cm) and another at the
+  exit (last 4–5 cm) with a depleted middle. **Those two plugs are what keep the
+  band relocated**, and neither clears.
+- **The depletion front is a NOx DIFFUSION front, and it stalls.** It decelerates
+  (0.015 cm/s at η=0.1 over 50–150 s, 0.003 cm/s at η=0.3, both slowing) and
+  parks at 2–3 cm — which is just sqrt(D·t) for NO₂ at 6 bar (D ≈ 0.017 cm²/s,
+  sqrt(0.017×150) = 1.6 cm). NOx is made only where the pulse has compressed, and
+  it reaches upstream only by diffusion, so the front creeps as sqrt(t) and never
+  arrives. Higher η parks it further upstream, sooner. This is monotone
+  relaxation, not a limit cycle.
+- **Methodological blocker found in the same runs: `uppe_tol` quantises the
+  observable, and at 0.1 the optics are effectively frozen.** 59 of the 63 UPPE
+  solves at η=0.1 happen in the first 13 s; only 4 more in the remaining 137 s.
+  The composition-drift metric is dominated by the fast initial ozone build, and
+  once ozone plateaus the drift sits at 0.02–0.13 while the spatial profile
+  still reorganises by several cm. So the UV output is a piecewise-constant
+  staircase with steps tens of seconds long — **it is structurally incapable of
+  showing a ~100 s oscillation**. If the mechanism is optical (the compression
+  point switching between two positions as ozone slowly changes — and the
+  experiment's narrow 2.2 µJ window does suggest bistability rather than
+  chemistry), these runs could not have revealed it. Re-running at tol=0.01,
+  101 nodes. A drift metric sensitive to spatial redistribution, not just
+  composition, is probably the right longer-term fix.
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
   counted in `Rates.jl` (each channel carried the total rate).
 
