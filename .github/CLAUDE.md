@@ -534,7 +534,8 @@ Dropbox `PhD/Ozone paper/images/side/`.
 
 **Experimental constraints from the user's OneNote (2026-09-08), and what they do
 to the model.** Two pages: "Probe with oscillation" and "Nox investigation from",
-both 19 Sep 2025.
+both 19 Sep 2025. **Read the "THE PROBE IS AN NO2 MONITOR" block below first — it
+is the single most load-bearing fact in this file.**
 
 - **The model overproduces ozone by ~10x, and TWO independent measurements say
   so.** (i) The pump spectrum at 800 nm is constant through the oscillation, so
@@ -592,6 +593,140 @@ both 19 Sep 2025.
   extra nitrogen cancelled itself. **f2D was fixed at 0.5 arbitrarily; literature
   for N₂⁺ + e⁻ dissociative recombination (Peterson 1998 branchings) supports
   ~0.6–0.65.** Running f2D = 0.7 and 0.9 at η = 0.3 next.
+
+---
+
+## THE PROBE IS AN NO2 MONITOR (2026-09-08) — read this before touching the chemistry
+
+This is the result that reorganises everything above. It comes from the user's
+own pump-probe figure (two panels, time 0–1400 s on the vertical axis), plus the
+line plot of the two integrated traces.
+
+**The experiment.** 6 bar air, 2.5 µJ pump, 22.5 cm fibre, 1 kHz. A PCF-derived
+broadband probe co-propagates at the same rep rate, **~100 ns behind the pump**.
+Panel (a) is the transmitted probe, panel (b) the pump-generated RDW. The two
+line traces are those panels summed over wavelength. A SEPARATE probe run at
+**2 bar / 1.3 µJ generates no RDW at all** — that one is the clean
+ozone-formation case (`examples/oscillation/probe_2bar.jl`).
+
+**The probe band is 345–440 nm, and in that band ozone is invisible while NO₂ is
+near its peak.** From the tables in `PhotoChem.jl`:
+
+| λ (nm) | 350 | 370 | 390 | 410 | 430 |
+|---|---|---|---|---|---|
+| σ(O₃) cm² | 1.95e-22 | 1.04e-23 | 8.18e-24 | 2.79e-23 | 7.71e-23 |
+| σ(NO₂) cm² | 4.81e-19 | 5.78e-19 | 6.15e-19 | 6.05e-19 | 5.52e-19 |
+| σ(NO₃) cm² | 0 | 0 | 0 | 1.18e-20 | 1.75e-19 |
+
+**σ(NO₂)/σ(O₃) = 5.57e4 at 370 nm.** So panel (a) measures NO₂, not ozone. The
+white region below ~340 nm in that panel is simply where the probe source has no
+output; it is not an absorption feature. (The void near 400 nm in the earlier
+version of the figure is the anti-resonant fibre's own non-guided resonance
+band.)
+
+**Therefore the observed anti-phase is a DIRECT measurement of NOx titration.**
+Probe transmission is high exactly when the RDW is absent, i.e. NO₂ is high
+exactly when the RDW transmits, and the RDW transmits when ozone is low. NO₂ and
+O₃ anti-correlated is the titration signature itself. This is measured, not
+inferred, and it settles the mechanism question the whole "oscillation hunt"
+section above was circling.
+
+**It also calibrates the NITROGEN source, which nothing else in this project
+does.** Converting the observed probe swing to a column at σ(370 nm) = 5.78e-19:
+
+| probe swing | NO₂ column (cm⁻²) | mean over 22.5 cm (cm⁻³) | as % of 1.5e20 |
+|---|---|---|---|
+| 1 dB | 3.99e17 | 1.77e16 | 0.0118 |
+| 2 dB | 7.97e17 | 3.54e16 | 0.0236 |
+| 3 dB | 1.20e18 | 5.32e16 | 0.0354 |
+| 5 dB | 1.99e18 | 8.86e16 | 0.0591 |
+
+The observed swing is a factor ~2 (≈3 dB), so **target NO₂ column ≈ 4e17–1.2e18
+cm⁻²**. The model brackets it:
+
+| run | NO₂ column (cm⁻²) | dB at 370 nm | O₃ column (% of density) |
+|---|---|---|---|
+| f2D = 0.5, η = 0.1 (150 s) | 6.32e16 | 0.16 | 1.3 % |
+| f2D = 0.9, η = 0.3 (at t = 12 s) | 6.25e18 | 15.7 | 0.50 % |
+
+So f2D = 0.5 / η = 0.1 is ~20x short and f2D = 0.9 / η = 0.3 is ~5x over.
+**Interpolate to the measured swing rather than scanning further**; roughly
+f2D ≈ 0.7, η ≈ 0.2. Note NO₂ responds superlinearly (99x for an 18x change in
+the product of net-NOx-yield and η) because titration feeds back on itself.
+
+**Panel (b): the RDW switches ON and OFF at a FIXED ~280 nm. It does not move.**
+Bursts at roughly t = 130, 250, 400, 570, 740, 900, 1090, 1270 s — period growing
+from ~120 s to ~190 s across the record, so this is a threshold oscillator riding
+a slow drift, not a fixed limit cycle. Square tops, dwell ~60–80 s high and
+~80–110 s low. **Every 1-D run in this repo instead drags the centroid to
+330–336 nm and parks it.** That is a third, independent signature of the ozone
+excess: at the true ozone level the index perturbation is too small to move
+phase-matching, so the band can only be extinguished and restored.
+
+**The probe's ~100 ns delay is itself a measurement of the per-pulse photolysis
+fraction.** O + O₂ + M → O₃ reformation vs pressure, and how much has reformed
+when the probe arrives:
+
+| P (bar) | 2 | 3 | 5 | 6 | 8 | 12 |
+|---|---|---|---|---|---|---|
+| k₁[O₂][M] (s⁻¹) | 3.19e5 | 7.19e5 | 2.00e6 | 2.87e6 | 5.11e6 | 1.15e7 |
+| 1/e (ns) | 3131 | 1392 | 501 | 348 | 196 | 87 |
+| reformed at 100 ns | 3.1 % | 6.9 % | 18 % | 25 % | 40 % | 68 % |
+
+At 6 bar a quarter has reformed, so the probe sees the gas with ~75 % of the
+photolysed odd oxygen still atomic.
+
+## Ozone sinks: the pump beats the RDW, and both are localized (2026-09-08)
+
+- **The pump destroys 44.6 % of the ozone PER PULSE at the compression point**,
+  by strong-field dissociation at 12.53 eV (`:O3_diss`). Measured from
+  `Dissfrac_O3` at 6 bar / 2.2 µJ: peak 0.446 at z = 7.2 cm, against
+  `Dissfrac_O2` = 1.10e-2 at the same z. An e-folding in 2 pulses. This is
+  **3.7x larger than the RDW's 12 % photolysis** and is already wired into the
+  chemistry through `apply_lunaion(...; o3_from_adk=true)` (the default).
+- **`diss_yield` (φ) does NOT scale the O₃ sink**, only the O₂/N₂ source. So the
+  local balance at the compression point is
+  `2·φ·f_O2·[O₂] = f_O3·[O₃]`, giving
+  `[O₃] = 2 × 0.05 × 0.011 × 0.21 / 0.446 = 5.2e-4` of total density = **0.052 %**
+  — squarely inside the range the experiments allow. **The model gets the
+  compression point about right and is wrong everywhere else.**
+- **The real defect is that both sinks are violently localized while the source
+  is not.** Strong-field dissociation follows a steep intensity law so it exists
+  only at the compression point; the RDW is born there and travels forward so it
+  only sweeps downstream. Production happens along the whole fibre. **Upstream of
+  the compression point the model has NO ozone sink at all.** Even an entrance
+  `Dissfrac_O2` of 1e-5 accumulates to percent levels over 1e5 shots. That is
+  exactly the entrance plug (0–3 cm) that never clears in the 150 s runs and
+  drags the band to 330 nm. The user's measurements are COLUMN measurements, so
+  they say ozone is low everywhere including upstream — something sweeps that
+  region and the model does not have it. **This is the open problem.**
+- **Withdrawn: the per-shot photon-budget bound.** I argued the RDW could not
+  destroy ozone because 65 nJ at 270 nm is 8.83e10 photons against 3.1e14 ozone
+  molecules in the beam. That is per-shot reasoning and the process takes tens of
+  seconds. Burn-through time = molecules / (photons × 1 kHz):
+
+  | O₃ fraction | 1.3e-2 | 1e-3 | 3e-4 | 1e-4 |
+  |---|---|---|---|---|
+  | burn-through | 3.5 s | 0.3 s | 0.1 s | 0.03 s |
+
+  Nothing is photon-limited on the oscillation timescale. **The Chappuis null and
+  the constant 800 nm spectrum remain valid and independent**; they still say the
+  ozone column is ~10x below the model.
+- **Caveat on the φ = 0.05 calibration.** It was fitted to "9.3e24 m⁻³ after ~5 s"
+  quoted from the paper in `examples/he_o2.jl`. That may be the PAPER'S MODEL
+  output rather than a measurement — the same file says the paper's model
+  reproduces the He-O₂ case. If so, φ was calibrated model-against-model, while
+  the user's Chappuis/IR data are real and disagree by ~100x. **Unresolved; ask
+  before relying on φ = 0.05.** The 2 bar / 1.3 µJ no-RDW probe run is the clean
+  replacement calibration.
+- Bug found on the way: `setup_propair`'s `densityfun` called CoolProp live with
+  whatever the partial-pressure spline returned, and CoolProp's root-find throws
+  on denormal-scale pressures (`P = 4.4e-71`) although `density(gas, 0.0)` is
+  fine and 1e-30 bar is fine. `PropAir.safe_partial_pressure` now snaps anything
+  below 1e-20 bar to zero. Only appeared at 2 bar; the 6 bar runs never drove a
+  species that low.
+
+---
 - Also found and fixed on the way: O(¹D)+O₃ and O(¹D)+N₂O branching double
   counted in `Rates.jl` (each channel carried the total rate).
 
