@@ -842,6 +842,65 @@ fitted — it needs the same barrier scan against this curve, which is cheap now
 - The ~27th-order energy scaling of the paper's 1.2/1.3/1.4 µJ simulations is still
   unexplained, and by the tunnelling bound above it cannot come from the source.
 
+## The 6 bar RDW trace: the sweep reproduces, the SWITCH does not (2026-09-08)
+
+`examples/oscillation/rdw_energy_match.jl`, 6 bar air / 2.5 µJ / 22.5 cm / 30 fs, run
+with the calibrated source and the limiting sinks from the 255 nm fit
+(`diss_yield=1, n2_yield=0, wall=0, o3_from_adk=false`, 101 z-points, one UPPE re-solve
+per second of experiment time). **Abandoned at t = 10 s** — see the cost note below.
+Deliberately NO nitrogen chemistry, so this is the ozone-only control, not an
+oscillation test.
+
+| t (s) | RDW centroid | band energy | O₃ column (cm⁻²) |
+|---|---|---|---|
+| 0.0 | 282.1 nm | 0.00 dB | 0 |
+| 1.0 | 288.3 nm | −1.12 dB | 4.08e17 |
+| 2.0 | 290.4 nm | −1.50 dB | 7.26e17 |
+| 4.0 | 291.8 nm | −1.82 dB | 1.18e18 |
+| 7.0 | 292.8 nm | −2.04 dB | 1.60e18 |
+| 10.0 | 293.5 nm | −2.17 dB | 1.88e18 |
+
+**What works.** The RDW is born at **282.1 nm** — the experiment says it starts at
+280 nm — and sweeps monotonically to longer wavelengths as ozone accumulates, which is
+exactly the early behaviour described from the 6 bar spectrograms. That is the first
+time the model has reproduced this, and it comes out of the calibrated source with no
+tuning.
+
+**What does not.** The band energy falls only **2.2 dB in 10 s and is plainly
+saturating** (per-second decrements 1.12, 0.38, 0.20, 0.12, 0.09, 0.07, 0.06, 0.05,
+0.04), against an observed switch depth of ~9.7 dB. It is not for want of ozone: the
+column reaches 1.88e18 cm⁻², 5.5× the entire 2 bar / 8 s column, and is still rising.
+
+Two reasons, and they compound:
+
+1. **The sweep is self-protecting.** σ(O₃) is 5.5e-18 cm² at 282 nm but 2.6e-18 at
+   293 nm. As ozone builds, phase matching moves the RDW to where ozone is more
+   transparent. A band that runs away from its own absorber cannot switch itself off.
+2. **The ozone sits at the generation point, not downstream of it.** The compression
+   point is at 7.04 cm of 22.5 cm and the ozone peaks there too, so the RDW is created
+   inside the absorber rather than having to traverse it. This is consistent with the
+   uniform-ozone back-action scan above (5.7e-4 uniform would give ~5 dB; localised
+   gives 2.2), and it is the same "production and sinks are co-located" problem flagged
+   earlier, seen now from the optical side.
+
+**So absorption of a freely-sweeping RDW does not produce the observed switch.** Either
+something pins the band at 280 nm while ozone builds (the experiment does show it
+returning to 280 nm to oscillate, *after* the initial sweep and disappearance), or the
+switch is not absorption at all.
+
+### Cost note — this is the practical blocker for any long run
+
+At 201 z-points the 6 bar case runs ~0.3 s of experiment time per minute of wall clock,
+i.e. **~7 hours per 200 s**, and the observed phenomenon needs ~1400 s. The UPPE solves
+are *not* the bottleneck: at one re-solve per second of experiment time they are ~13 s
+each against ~500 s of chemistry per 4 s of experiment time, so the cost is the
+reaction-diffusion integration itself — ~0.25 s per kick for 2211 unknowns (201 nodes ×
+11 species). The `FastRHS` work sped up the residual; the remaining cost is the implicit
+solver's Jacobian and linear algebra. Halving the grid to 101 points helps but not
+enough. **Any plan that needs hundreds of seconds of experiment time needs this
+addressed first** — sparse/banded Jacobian, or a reduced model with the switch
+tabulated.
+
 ## THE PROBE IS AN NO2 MONITOR (2026-09-08) — read this before touching the chemistry
 
 This is the result that reorganises everything above. It comes from the user's
