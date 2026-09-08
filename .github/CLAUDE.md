@@ -635,10 +635,24 @@ problem, and it is a sharper question than "does it oscillate".
 and `pcf`), which is the source of the two anti-phased traces. Pre-rendered PNG crops name
 both their wavelength and time windows, so they index the h5 cheaply.
 
-Open, and to be asked rather than assumed: the filenames say **argon**
-(`200mbarAr_Hisol`, `6barAr_pcf`) while the directory path says **air**; which
-spectrometer is pump and which is probe; and why the time windows run to **40000 s** when
-the oscillation has been discussed at ~1400 s.
+Configuration, confirmed by the user 2026-09-08:
+
+| item | answer |
+|---|---|
+| the `Ar` in the filenames | argon generates the **probe**; the sample fibre is **air** |
+| `hisol` | the **probe** |
+| `pcf` | the **pump** |
+| time axis | **uncalibrated and wrong** — 40000 s should read ~600 s |
+
+**The probe's slow decay is mostly NOT chemistry.** It is largely the probe source decaying
+before the light enters the fibre. Some part may be NOx, but the two are not separable a
+priori, so **the probe trace must be detrended before it becomes a target** and only its
+oscillatory component is a chemistry observable. Fitting the raw probe envelope would be
+fitting a property of the probe generation stage — the same class of silent error as
+fitting a pre-coupling pulse energy.
+
+This supersedes the earlier note that "the slow decay in the probe is due to the source
+decaying away", which could be read as the ozone/NOx source. It is the optical source.
 
 ## FIXED EXPERIMENTAL PARAMETERS — never fit these (2026-09-08)
 
