@@ -596,6 +596,130 @@ is the single most load-bearing fact in this file.**
 
 ---
 
+## FIXED EXPERIMENTAL PARAMETERS — never fit these (2026-09-08)
+
+These are measured properties of the apparatus, identical across every fibre and
+every pump pulse in this work. They are **not** free parameters, and a fit that
+moves them is a fit that has gone wrong:
+
+| quantity | value | note |
+|---|---|---|
+| core **diameter** | 30 µm | so `a = 15e-6` (radius) in every script |
+| pump pulse duration | ~30 fs | all pump pulses, all pressures |
+| repetition rate | 1 kHz | pump and probe |
+| probe delay | +100 ns after the pump | same rep rate |
+| centre wavelength | 800 nm | |
+
+Fibre length is 22.5 cm for the 6 bar air / N₂-O₂ oscillation experiments and
+**33 cm** for the 2 bar 255 nm probe-transmission experiment. Pressure and pulse
+energy are stated per experiment.
+
+If the model disagrees with data, the thing to move is a *model* parameter — the
+effective ADK barrier, a rate coefficient, a branching ratio — not the apparatus.
+
+## THE ADK O₂ BARRIER IS CALIBRATED: 21.0 eV, and φ = 1 (2026-09-08)
+
+**This supersedes every `diss_yield`/φ value used anywhere earlier in this repo.**
+
+### The measurement
+
+The 255 nm probe-transmission experiment (2 bar air, 33 cm, 1.3 µJ, 30 fs, 1 kHz)
+is the cleanest calibration in the whole dataset, and it had not been used. It is a
+direct Beer-Lambert readout of the ozone **column**:
+
+- 255 nm is the Hartley peak, σ₂₅₅ = 1.15e-17 cm².
+- **No RDW is generated at these parameters** (user, confirmed by the model: 1e-5 of
+  the output energy below 400 nm here versus 0.12-0.19 at 6 bar / 2.2 µJ). No RDW
+  means no UV photolysis and no ozone feedback on the optics, so the column is set by
+  the ADK O₂ source and the Chapman sinks *alone*. Every other case in this repo
+  tangles those together.
+
+Digitised from the red "Exp 1.3 µJ" trace, with column = −ln(I/I₀)/σ₂₅₅:
+
+| t (s) | I/I₀ | O₃ column (cm⁻²) |
+|---|---|---|
+| 0.5 | 0.78 | 2.16e16 |
+| 1.0 | 0.58 | 4.74e16 |
+| 2.0 | 0.31 | 1.02e17 |
+| 4.0 | 0.125 | 1.81e17 |
+| 6.0 | 0.055 | 2.52e17 |
+| 8.0 | 0.02 | 3.40e17 |
+
+The rise is close to linear, slightly sub-linear: **~4.3e13 cm⁻² per pulse** at 1 kHz.
+(Linear in column ⇒ exponential in I/I₀; the late-time trace sits above that, so
+there is a real sink, not just a source.)
+
+### The discrepancy, and what it was
+
+At the fixed geometry with the old 15.5 eV barrier the model produced
+**3.97e17 cm⁻² per pulse — 9200× too much**. That is the true size of the ozone
+overproduction, and it is far bigger than the ~10× previously inferred from the
+indirect arguments (Chappuis null, constant 800 nm spectrum, sweep rate). It is why
+every air run in this repo has needed `diss_yield` between 1e-4 and 0.05 to look sane.
+
+The overproduction is **entirely in the barrier**, not in the geometry or the pulse.
+Scan at 2 bar / 33 cm / 1.3 µJ / 30 fs / a = 15 µm (`examples/oscillation/o2diss_barrier_fit.jl`,
+one propagation per energy, all trial barriers evaluated on the same field via the new
+`PropAir` `diss_scan` kwarg):
+
+| barrier (eV) | source (cm⁻²/pulse) | φ needed |
+|---|---|---|
+| 15.5 (old) | 3.97e17 | 1.08e-4 |
+| 18.0 | 6.93e15 | 6.2e-3 |
+| 20.0 | 2.34e14 | 0.183 |
+| 20.8 | 5.84e13 | 0.736 |
+| **21.0** | **4.11e13** | **1.045** |
+| 21.4 | 2.03e13 | 2.12 |
+| 23.0 | 1.15e12 | 37.3 |
+
+**`:O2_diss` is now 21.0 eV in `PhysData.jl`** (old value commented in place), and
+`diss_yield` should be **1.0** — the branching-ratio fudge disappears entirely.
+
+Why the barrier and not φ: φ is a *branching ratio*, and a branching ratio of 1e-4 for
+a superexcited state is not physical. The ADK "ionisation potential" for a dissociation
+channel is by contrast an openly **effective** parameter — ADK is a hydrogenic
+tunnelling formula pressed into service for molecular dissociation — so it is the
+honest place to absorb a factor of 1e4.
+
+### A bound worth keeping: the source cannot be steeper than ~10th order
+
+The same figure carries the paper's own simulations at 1.2 / 1.3 / 1.4 µJ
+(I/I₀ ≈ 0.87 / 0.30 / 0.02 at t = 2 s), i.e. columns in the ratio 1 : 8.8 : >29, which
+is d ln(col)/d ln(E) ≈ **27**. The model gives 6.7 at 15.5 eV and 12.0 at 21.0 eV, and
+**no barrier can reach 27**:
+
+> For any tunnelling rate R = A·exp(−B/E) with A ~ 1e16-1e17 s⁻¹, the intensity order at
+> an operating point is ½·ln(A/R). Producing the measured source needs a dissociated
+> fraction ~2e-6 in 30 fs, i.e. R ~ 1e8 s⁻¹, so ln(A/R) ≈ 18-21 and the order is
+> **9-10.5 — independent of the barrier**, which only sets *where* in z that rate is
+> reached. Measured compression sensitivity d ln(I_peak)/d ln(E) is 0.9-1.4 at these
+> parameters, so the total energy order is bounded at roughly 9-15.
+
+So the remaining factor ~2 in energy sensitivity is **not** in the source term. It has
+to come from somewhere else — most plausibly a threshold, e.g. the self-compression
+point crossing the fibre exit. At 2 bar / 33 cm / 30 fs the model puts the compression
+point at 21.9 cm (peak 1.18e14 W/cm²), moving 27.4 → 18.5 cm as the energy goes
+1.0 → 1.6 µJ. Worth checking against where the experiment thinks it compresses; do not
+"fix" it by moving `a` or `τ`.
+
+### What this invalidates
+
+Every air result in `examples/oscillation/` predating this used 15.5 eV together with a
+φ chosen to compensate, and the compensation was applied as a flat multiplier on the
+source. That is *not* equivalent to raising the barrier, because the barrier also
+changes the **spatial profile** of the source (it concentrates it into the small region
+where the intensity is highest) and its **energy scaling** (order 6.7 → 12.0). The
+N₂ source moves with it: at 6 bar / 2.2 µJ the O₂ source falls 1.20e18 → (21 eV) and
+the N₂ source with it, so the NOx supply — the thing the whole oscillation argument
+turns on — needs re-measuring, not rescaling.
+
+**`:N2_diss` remains at 21.0 eV and is now UNCONSTRAINED by any measurement.** It was
+21 before this change and is unchanged; the user has suggested it might be 15.5. It was
+deliberately left alone here because nothing in the 255 nm data constrains it, and
+guessing at it would repeat the mistake this section exists to correct. Nitrogen needs
+its own calibration observable — the NO side-scattering lines (onset ~35 s) are the
+obvious candidate.
+
 ## THE PROBE IS AN NO2 MONITOR (2026-09-08) — read this before touching the chemistry
 
 This is the result that reorganises everything above. It comes from the user's

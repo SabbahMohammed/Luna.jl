@@ -872,10 +872,26 @@ function ionisation_potential(material; unit=:SI)
     elseif material == :D2
         Ip = 0.5684 # from NIST Chemistry WebBook
     elseif material == :O2_diss
-        Ip = 15.5 / 27.21138602 # Song etl al: eV -> atomic units. Energy of the superexcited state
-        # reached via strong-field multiphoton/tunnelling excitation, not the ground-state
-        # O=O bond dissociation energy (5.12 eV) -- the latter underestimates the barrier
-        # and saturates the ADK dissociation fraction to ~1 at these field strengths.
+        Ip = 21.0 / 27.21138602 # was 15.5 (Song et al). eV -> atomic units. Energy of the
+        # superexcited state reached via strong-field multiphoton/tunnelling excitation, not
+        # the ground-state O=O bond dissociation energy (5.12 eV) -- the latter
+        # underestimates the barrier and saturates the ADK dissociation fraction to ~1 at
+        # these field strengths.
+        #
+        # 21.0 eV is CALIBRATED, not spectroscopic. This number is an effective ADK
+        # parameter: ADK is a hydrogenic tunnelling formula pressed into service for a
+        # molecular dissociation channel, so its "ionisation potential" is a fit quantity in
+        # a way a real ionisation potential is not. It is fixed by the 255 nm probe
+        # transmission (2 bar air, 33 cm, 1.3 uJ, 30 fs, 15 um core radius -- all fixed
+        # experimental parameters, none of them fitted), which is a direct Beer-Lambert
+        # readout of the ozone column with no RDW and hence no photolysis feedback:
+        #     I/I0 at 255 nm falls 1.0 -> 0.02 over 8 s, sigma_255 = 1.15e-17 cm^2,
+        #     so the column rises at ~4.3e13 cm^-2 per pulse at 1 kHz.
+        # At 15.5 eV the model produced 3.97e17 cm^-2 per pulse, ~9200x too much, which is
+        # why every air run in this repo needed diss_yield ~ 1e-4 to 0.05 to look sane. At
+        # 21.0 eV the source is 4.11e13 cm^-2 per pulse and diss_yield = 1.045, i.e. the
+        # branching ratio is 1 and the fudge factor disappears.
+        # See LupoAirOsc examples/oscillation/o2diss_barrier_fit.jl.
     elseif material == :N2_diss # P. Erman,
         Ip = 21 / 27.21138602 # eV -> atomic units. Superexcited-state energy (see :O2_diss).
     elseif material == :O3_diss
