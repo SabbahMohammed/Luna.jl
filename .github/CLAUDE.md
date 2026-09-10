@@ -756,6 +756,27 @@ fitting a pre-coupling pulse energy.
 This supersedes the earlier note that "the slow decay in the probe is due to the source
 decaying away", which could be read as the ozone/NOx source. It is the optical source.
 
+## JULIA SESSIONS: AgentREPL AND MCPRepl (2026-09-10)
+
+A fresh Julia process here spends **~42 s** before doing any work (`using LupoAirOsc` 34.2 s,
+first propagation compile 6.4 s); the same short propagation in a warm session takes 0.5 s.
+Two MCP servers are registered with Claude Code at user scope:
+
+- **`agentrepl`** — AgentREPL.jl 0.7.1, dev checkout at `~/.julia/dev/AgentREPL`. For
+  sub-agents. Stdio, no network port; each `session` is an isolated Julia worker with Revise
+  auto-loaded. One session per agent, `activate` LupoAirOsc, call `revise` after edits.
+- **`mcprepl`** — MCPRepl.jl 0.1.0, dev checkout at `~/.julia/dev/MCPRepl`. For sharing your
+  own REPL: `using Revise, MCPRepl; MCPRepl.start!()`. It serves code execution on a
+  localhost-only port (3000 for the first REPL) with **no authentication**, so any local
+  process can run code while it is up; stop it when done. Its adapter also has a `spawn_repl`
+  tool that starts such a REPL in tmux without you. tmux is not installed, so that fails
+  today, but agents must never call `mcprepl` tools.
+
+Revise 3.17 is in the global environment. Long runs (the 6 bar chemistry) stay detached
+scripts writing to disk, never inside a session. Packages LupoAirOsc does not depend on
+(HDF5, StructuralIdentifiability, GlobalSensitivity) go in a separate environment. Full setup:
+`LupoAirOsc/docs/OSCILLATION_PLAN.md` section 8.3.
+
 ## WHERE THE DOCUMENTS AND DATA ARE (2026-09-08)
 
 Everything is under
