@@ -705,6 +705,11 @@ amplitude decay for the model to explain with chemistry it does not have.
 
 ## THE PERIOD IS NOT A TARGET — and its fragility is a clue (2026-09-08)
 
+**[Partly superseded 2026-09-10.]** Still true that the period is not a target. But the
+"fragile period, robust amplitude ⇒ relaxation" argument below no longer holds: the parameter
+grid (see "THE GOAL IS A MECHANISM", 2026-09-10) shows depth and duty cycle vary across
+parameters too, so the oscillation type is open.
+
 **Do not fit the oscillation period.** It is not reproducible even between nominally
 identical experiments; a slight change in coupled energy or fill pressure moves it. Fitting
 to it is fitting to noise. The target is that **the oscillation exists**, robustly, with the
@@ -815,6 +820,43 @@ answer, and that model's ozone is now known to be ~9200× high. Two numbers alre
 this way: the 9.3e24 m⁻³ He-O₂ ozone figure, and the ~27th-order energy scaling, which came
 from the paper's simulated 1.2/1.3/1.4 µJ curves and not from data. Record for every target
 whether it is measured or simulated; when a figure does not say, ask.
+
+## THE GOAL IS A MECHANISM; THE PARAMETER GRID MAKES EVERY NUMBER A GUIDE (2026-09-10)
+
+**The goal is a physical mechanism that makes the RDW oscillate — regardless of timescale,
+duty cycle or peak-to-valley depth** (user). No single experimental number is a target; the
+numbers only say whether a mechanism is in roughly the right regime.
+
+Why, from thesis Figures 7.11 and 7.12 (printed pp. 97–98, PDF pp. 111–112; PDF page = printed
+page + 14): a grid of 5–8 bar × 1.6/2.2/2.8 µJ for 22.5 cm and 27 cm fibres, 700 s per cell.
+Read off the figures, to be re-derived from `Ozone paper/images/grid`:
+
+- **Oscillation is confined to a narrow window** — at 22.5 cm, 6 bar/2.2 µJ (strong),
+  5 bar/2.2 µJ (shallow), possibly 7 bar/2.8 µJ; at 27 cm, 6 bar/1.6 and 2.2 µJ and
+  7 bar/2.2 µJ. Almost every other cell settles to a steady RDW.
+- **The window moves with fibre length**: lower energy at 6 bar, and 7 bar, at 27 cm.
+- **Period (~70 to >200 s), depth (shallow beading to deep switching), onset time**, and
+  whether the modulation is also spectral (the 6 bar cells swing toward shorter wavelengths)
+  all vary from cell to cell.
+
+So the best test of a mechanism is a **map**: steady for most parameters, oscillating in a
+limited window that moves the right way with fibre length. The gas fill and energy convention
+for the grid are not in the captions — confirm from the thesis main text or ask.
+
+This supersedes the "robust amplitude ⇒ relaxation oscillator" inference in the 2026-09-08
+sections on the period and the waveform: amplitude is not robust across parameters, so the
+oscillation type is open.
+
+**Thesis interpretation worth knowing** (printed p. 99, discussion — an interpretation, not a
+measurement): nitrogen's dissociation energy is higher than oxygen's, so O atoms are produced
+faster, ozone forms first, and the DW shift happens before O atoms are lost to reactions with
+nitrogen. Consistent with the red flag that `:N2_diss` should sit above `:O2_diss`.
+
+**Access.** On 2026-09-10 macOS blocked every Dropbox folder for Visual Studio Code
+("Operation not permitted"), so `images/grid` and the h5 data were unreadable from Claude
+Code. Grant VS Code access under System Settings → Privacy & Security and restart it. An
+identical copy of the thesis (same size and page count) is at
+`~/Zotero/storage/REG4PSGD/MSabbah_PhD_Thesis_Final_submission.pdf`.
 
 ## CORRECTIONS FROM THE PLAN REVIEW (2026-09-10)
 
