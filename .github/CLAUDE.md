@@ -689,7 +689,7 @@ not amount.
 - **Period 147, 156, 159, 160 s** (Schmitt-triggered rising edges at 302, 449, 605, 764,
   924 s), lengthening ~9 % across four cycles. The first 285 s interval is the locking
   transient — the first two maxima never reach full amplitude.
-- The waveform is **square**: flat top, flat bottom, fast transitions. Relaxation, not Hopf.
+- The waveform is **square**: flat top, flat bottom, fast transitions. Relaxation-like, not Hopf-like, **in this run** — *[qualified 2026-09-10: one run at one set of parameters; across the thesis parameter grid depth and duty cycle vary between cells, so the oscillation type is open — see "THE GOAL IS A MECHANISM"]*.
   Amplitude locks after 2-3 cycles while the period keeps drifting.
 
 Note the period here (~150 s) is not the ~100 s quoted from the 6 bar spectrograms. Since
