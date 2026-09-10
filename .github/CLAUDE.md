@@ -672,6 +672,11 @@ found the compression point immobile: it should be.
 Consistency check to do: 7.92 dB of in-band absorption over the post-compression length,
 at σ(O₃) ≈ 5.5e-18 cm² near 282 nm, needs a column of ~4.1e17 cm⁻² downstream. Compare the
 model's 8.6e14 cm⁻² naive steady state at 6 bar — **~500× short**, which is the gap to close.
+**[Superseded 2026-09-10.]** That 8.6e14 assumed the pump destroys 52 % of the ozone every
+pulse, which the 255 nm match later showed is far too strong. With that fit's limiting sinks
+the 6 bar run reached 1.88e18 cm⁻² in 10 s (see "The 6 bar RDW trace" below) — enough ozone in
+total, but peaked at the compression point where the RDW is generated. The gap is location,
+not amount.
 
 ### The oscillation, measured
 
@@ -810,6 +815,22 @@ answer, and that model's ozone is now known to be ~9200× high. Two numbers alre
 this way: the 9.3e24 m⁻³ He-O₂ ozone figure, and the ~27th-order energy scaling, which came
 from the paper's simulated 1.2/1.3/1.4 µJ curves and not from data. Record for every target
 whether it is measured or simulated; when a figure does not say, ask.
+
+## CORRECTIONS FROM THE PLAN REVIEW (2026-09-10)
+
+- **Fibre ends are right as modelled.** The gas cells are sealed, and the user confirmed that
+  holding both ends at fresh-fill composition — the model's Dirichlet boundary for every
+  species — is correct. It is not a detail: over a ~1000 s run, exchange with the ends reaches
+  7–10 cm into the fibre, comparable to the ~7 cm between the input end and the compression
+  point, so the ends are a real ozone and NOx sink and reduced models must keep an
+  end-exchange term.
+- **NOx is not simply catalytic.** The network already forms N₂O₅ (k24/k25) and loses N₂O₅ and
+  NO₃ to the wall with γ = 1e-3 each. The sink exists; its rate is the question, and 1e-3 is a
+  guess that looks high against the γ(O) ≲ 1e-5 the 255 nm fit found on the same silica.
+- **The ozone gap is location, not amount** — see the superseded note in the anti-phase section.
+- **The model is 1-D along z** (201 points); radial mixing (~20 µs) is treated as instant and
+  walls enter as first-order losses. Temperature is fixed at 298 K; gas heating is bounded at
+  ≲0.03 K even if all 2.2 mW were absorbed, against ~0.4 K for a 1 % change in O + O₃.
 
 ## FIXED EXPERIMENTAL PARAMETERS — never fit these (2026-09-08)
 
