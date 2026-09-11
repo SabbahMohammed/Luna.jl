@@ -821,6 +821,41 @@ this way: the 9.3e24 m⁻³ He-O₂ ozone figure, and the ~27th-order energy sca
 from the paper's simulated 1.2/1.3/1.4 µJ curves and not from data. Record for every target
 whether it is measured or simulated; when a figure does not say, ask.
 
+## THE PUMP-OFF EXPERIMENT: THE OSCILLATION'S CLOCK RUNS ON PUMPED TIME (2026-09-11)
+
+**File:** `Projects/Ozone/phd/spec/air fiber 10/27-01/6bar_air_3uJ_225mm_fiber10_40000frames.h5`
+(2020-01-27, 6 bar air, 22.5 cm, fibre 10, pump only; extracted to
+`LupoAirOsc/targets/raw/pumpblock_27-01-2020_6bar_air.tsv`). Identified from the folder's notebook
+and saved plots, which match the user's figures. Layout `/raw/spectrum`, `/raw/λ`, text timestamps;
+62.65 Hz. The `3uJ` label's in-fibre energy is **not confirmed** — ask.
+
+The pump was blocked twice mid-oscillation. RDW / pump band (cancels coupling drift, which is only
+2–5 % here), relative to the first peak:
+
+| stretch | pump | RDW |
+|---|---|---|
+| fresh gas | on 2 → 315 s | dark 20–140 s (0.03); above 25 % from 193 s; peak at 273 s; 0.64 and falling at the block |
+| gap 1 | off ~114 s | — |
+| | on 429 → 443 s | spike 1.04 within ~2 s, down to 0.29 within ~5 s |
+| gap 2 | off ~110 s | — |
+| | on 553 → 667 s | back at once at 0.40, no spike; peak at 632 s, 1.17× the first |
+
+A 2 s burst at 396 s at 18 % of normal pump power produced no RDW.
+
+- **The phase-setting state survives ~110 s without the pump** (~190 s onset from fresh gas versus
+  an immediate return after each gap).
+- **The phase advances with pumped time:** peaks 359 s apart on the clock but 133 s apart in
+  full-power pumped time (41 + 13 + 79 s), about one period of comparable 6 bar runs. Only one peak
+  precedes the first block, so this run's own period is not measured.
+- **A fast quencher relaxes in the dark and rebuilds within seconds** (the spike after gap 1), while
+  the slow memory does not. Local ozone at the compression point fits the fast role. The missing
+  spike after gap 2 is unexplained.
+
+**Mechanism filter:** the slow variable must change while pumped and barely change in 110 s of
+darkness. N₂O₅ re-partitioning, axial diffusion and end exchange keep evolving in the dark, so each
+must be shown not to move the phase; a long-lived inventory made or destroyed only by the pump
+(total NOx, N₂O) passes. Reproducing this run is part of Tier 2.
+
 ## SECOND PLAN REVIEW: DECISIONS AND APPARATUS FACTS (2026-09-10)
 
 **Apparatus facts from the user — inputs, never fit parameters:**
