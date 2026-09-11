@@ -821,6 +821,43 @@ this way: the 9.3e24 m⁻³ He-O₂ ozone figure, and the ~27th-order energy sca
 from the paper's simulated 1.2/1.3/1.4 µJ curves and not from data. Record for every target
 whether it is measured or simulated; when a figure does not say, ask.
 
+## SECOND PLAN REVIEW: DECISIONS AND APPARATUS FACTS (2026-09-10)
+
+**Apparatus facts from the user — inputs, never fit parameters:**
+- **Fill pressure is stable but declines slowly**, e.g. 6 → 5.92 bar over a run (~1.3 %).
+- **Pulse-energy RIN is below 1.5 %.** Whether the mean energy also drifts slowly over a run is
+  not known.
+
+**Decisions (user):**
+- **Success has two tiers.** Tier 1, the goal: a physically constrained, numerically converged
+  mechanism that makes the RDW oscillate. Tier 2, confidence: it also reproduces the 22.5 cm
+  grid's qualitative map, the pump–probe anti-phase relation including which leads, and a
+  response to the apparatus drift and noise consistent with the experiment. Failing Tier 2
+  does not undo Tier 1.
+- **The 27 cm grid is not modelled.** Use its dynamics for insight; simulate it only to
+  understand something specific, never as a target or validation.
+- **Calibration and judging data stay separate.** Parameters are calibrated against observables
+  that do not require reproducing the oscillation; the oscillation's own features only judge a
+  mechanism.
+- The identifiability rule is refined from "one observable per parameter" to **"never estimate
+  parameters the data cannot tell apart"**.
+
+**Two bounds on where run-to-run variability can come from:**
+- Intrinsic chemical noise is negligible: ~1e12 ozone molecules in the 0.16 µL core gives ~1e-6
+  relative fluctuations.
+- Energy RIN barely affects the ozone source: at up to ~5.5th-order energy scaling, 1.5 % noise
+  raises the mean source by ~0.3 % and averages out over the thousands of pulses in any chemical
+  timescale.
+
+So variability more likely reflects sensitivity near the edges of the oscillating window, or slow
+drift. The slow pressure decline is the concrete candidate to test, including whether it can
+stretch the period within a run (the anti-phase intervals grow from ~2000 to ~4300 frames).
+
+**Gates added to the plan:** numerical convergence (tolerances, at least 201 z points, `nbundle`,
+UPPE re-solve cadence — the artefacts this project has actually hit); a feedback-loop gate before
+any mechanism search, which also tests which species carries the loop; sensitivity to the
+apparatus drift and noise; and a `conflicts/` ledger for disagreeing evidence.
+
 ## THE GOAL IS A MECHANISM; THE PARAMETER GRID MAKES EVERY NUMBER A GUIDE (2026-09-10)
 
 **The goal is a physical mechanism that makes the RDW oscillate — regardless of timescale,
