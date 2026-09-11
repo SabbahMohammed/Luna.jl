@@ -827,7 +827,7 @@ whether it is measured or simulated; when a figure does not say, ask.
 (2020-01-27, 6 bar air, 22.5 cm, fibre 10, pump only; extracted to
 `LupoAirOsc/targets/raw/pumpblock_27-01-2020_6bar_air.tsv`). Identified from the folder's notebook
 and saved plots, which match the user's figures. Layout `/raw/spectrum`, `/raw/λ`, text timestamps;
-62.65 Hz. The `3uJ` label's in-fibre energy is **not confirmed** — ask.
+62.65 Hz. **Use 2.5 µJ in simulation** for the `3uJ` label (user, 2026-09-11).
 
 The pump was blocked twice mid-oscillation. RDW / pump band (cancels coupling drift, which is only
 2–5 % here), relative to the first peak:
@@ -973,6 +973,7 @@ factor ~20 in ozone, and the result looks plausible rather than erroneous.
 |---|---|---|
 | `N2-O2/6bar_4uJ_89.5deg_225mm_fiber10_raw_60000frames.h5` | 4 µJ | **2.2 µJ** |
 | `air_results/air_6bar_2.2uJ_22.5cm.h5` | 2.2 µJ | **2.2 µJ** |
+| `air fiber 10/27-01/6bar_air_3uJ_225mm_fiber10_40000frames.h5` (pump-off run) | 3 µJ | **2.5 µJ** |
 
 The 4 → 2.2 µJ mapping absorbs coupling loss and other transmission factors that are
 deliberately out of scope for the model. Apply it; do not try to derive it. Every other
