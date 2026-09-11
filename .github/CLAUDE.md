@@ -792,7 +792,9 @@ scripts writing to disk, never inside a session. Packages LupoAirOsc does not de
 User decision: the RDW-oscillation campaign runs **all on Fable**. The orchestrator, A4 DYNAMICS
 and A5 AUDIT run at **max** effort; A1 ORACLE, A2 REGISTER and A3 OPTICS at **xhigh**. The five
 sub-agent definitions (frontmatter `model: fable` plus `effort`) are
-`LupoAirOsc/.claude/agents/rdw-a*.md`, copied identically to `~/.julia/dev/.claude/agents/`.
+`LupoAirOsc/.claude/agents/rdw-a*.md`, copied identically to user level in
+`~/.claude/agents/rdw/` so a chat opened anywhere finds them (project agents are found only
+between a chat's working directory and its repository root).
 (An earlier version of the plan had an Opus orchestrator and justified centralising
 interpretation by "the sub-agents are Fable", as if Fable were the weaker model. It is the
 stronger one; the rule stands because only the orchestrator sees every agent's work.)
