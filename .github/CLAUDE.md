@@ -787,6 +787,37 @@ scripts writing to disk, never inside a session. Packages LupoAirOsc does not de
 (HDF5, StructuralIdentifiability, GlobalSensitivity) go in a separate environment. Full setup:
 `LupoAirOsc/docs/OSCILLATION_PLAN.md` section 8.3.
 
+## AGENT MODELS, EFFORT AND USAGE LIMITS (2026-09-11)
+
+User decision: the RDW-oscillation campaign runs **all on Fable**. The orchestrator, A4 DYNAMICS
+and A5 AUDIT run at **max** effort; A1 ORACLE, A2 REGISTER and A3 OPTICS at **xhigh**. The five
+sub-agent definitions (frontmatter `model: fable` plus `effort`) are
+`LupoAirOsc/.claude/agents/rdw-a*.md`, copied identically to `~/.julia/dev/.claude/agents/`.
+(An earlier version of the plan had an Opus orchestrator and justified centralising
+interpretation by "the sub-agents are Fable", as if Fable were the weaker model. It is the
+stronger one; the rule stands because only the orchestrator sees every agent's work.)
+
+Traps, checked against the Claude Code docs for v2.1.267:
+
+- Spawn agents by type with **no `model` override** — a per-call model beats the frontmatter.
+- **`max` effort lasts one session**: run `/effort max` in every orchestrator session.
+  `effortLevel` in settings.json accepts only up to `xhigh`, so the `max` in
+  `~/.claude/settings.json` does not provide it.
+- **`CLAUDE_CODE_EFFORT_LEVEL` overrides agent frontmatter** — never set it.
+
+**At a usage limit: wait for the reset, then continue** (user, 2026-09-11). Claude Code
+(v2.1.234 or later) does this itself in an open interactive session signed in to claude.ai
+(`autoContinueAtUsageLimit`, on by default). Four caveats:
+- it does not start the wait on its own for a limit more than 24 h from resetting (a weekly
+  limit) — pick "Wait here, then continue automatically" in `/rate-limit-options`;
+- it re-arms at most twice in a row;
+- it needs Enter after more than ~30 min of sleep;
+- it still stops on permission prompts.
+
+Detached Julia runs keep going through the wait. After the continuation, the orchestrator
+resumes interrupted agents with `SendMessage` and never restarts finished or still-running
+work. Full procedure: `OSCILLATION_PLAN.md` section 8.4.
+
 ## WHERE THE DOCUMENTS AND DATA ARE (2026-09-08)
 
 Everything is under
