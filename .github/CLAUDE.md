@@ -46,6 +46,35 @@ Two reference targets from the paper (Sec. III E, Fig. 5-7):
 
 ## Current stage
 
+**Where things stand (2026-09-11).**
+
+- The campaign is at the start of **Phase 0** of `LupoAirOsc/docs/OSCILLATION_PLAN.md`: nothing in
+  `targets/` beyond the two raw extracts, no register, no reduced-model skeleton yet.
+- Calibrated so far: the `:O2_diss` ADK barrier, **21.0 eV**, from the early-time slope of the
+  255 nm probe transmission (2 bar, 33 cm, 1.3 µJ in fibre); φ = 1 follows from it. γ(O) ≲ 1e-5 is
+  a bound from the same curve's late-time curvature, obtained with the wall off and
+  `o3_from_adk=false`. The barrier was fitted to a by-eye digitisation and is refitted in Phase 3.
+- Not calibrated: `:O3_diss` (12.53 eV; the ~14–14.5 eV figure is an extrapolation and the fit is
+  gated on Phase 1), `:N2_diss` (21 eV, unconstrained), every wall coefficient other than γ(O),
+  and the baseline sink settings themselves (undecided; the register will hold them).
+- **Nothing is reproduced.** Air does not oscillate in the model. He-O₂ was matched only to the
+  paper's *simulated* ozone density, at 15.5 eV with φ = 0.05, and has not been run since
+  2026-09-04; its measured target is the RDW wavelength trajectory (plan section 2).
+- The code defaults are stale relative to all of the above: `Rates.WallParams` γ(O) = 1e-3,
+  `air_1d_live.jl` wall on and φ = 0.14, `he_o2.jl` 22 cm instead of 22.5 cm.
+- What the model does show: the ozone → dispersion → RDW loop is live; the 6 bar run makes
+  1.88e18 cm⁻² of ozone in 10 s, peaked at the compression point, and the RDW falls only 2.2 dB;
+  the driver spectrum is identical in both RDW states (0.00 dB), so the switch is absorption of an
+  already-generated RDW.
+
+### Log of this section, 2026-09-02 to 2026-09-08 — kept as a record, superseded in places
+
+Everything from here to the next `##` heading was written before the 21.0 eV calibration and is
+kept as the record of how the model got here. Where it disagrees with the summary above or with
+the dated sections below, it is superseded. In particular: the 15.5 eV barrier and the "200× too
+fast" blocker were resolved by the 21.0 eV calibration; φ = 0.05 was fitted model-against-model
+and is superseded by φ = 1 at 21.0 eV; the He-O₂ ozone density target was the paper's simulation.
+
 All work in this session has been on the **He-O₂ validation case** —
 deliberately, since it's the case the paper's own model reproduces, so it's
 the right thing to get trustworthy before attempting air. The air/oscillation
@@ -786,6 +815,62 @@ Revise 3.17 is in the global environment. Long runs (the 6 bar chemistry) stay d
 scripts writing to disk, never inside a session. Packages LupoAirOsc does not depend on
 (HDF5, StructuralIdentifiability, GlobalSensitivity) go in a separate environment. Full setup:
 `LupoAirOsc/docs/OSCILLATION_PLAN.md` section 8.3.
+
+## USER DECISIONS, SECOND BATCH, AND WHAT THE DOCUMENTS SAY ABOUT He-O₂ (2026-09-11)
+
+Answers to the plan review of 2026-09-11, plus a reading of the paper and thesis. All recorded in
+`OSCILLATION_PLAN.md` (sections 0, 2, 3, 6, 7, 8.2, 8.5).
+
+- **The 255 nm run's 1.3 µJ is the in-fibre energy** (user). Thesis 7.2.2 and paper II C say
+  "∼1.3 µJ coupled pump pulses".
+- **Probe pulse energy: a few nJ** (user); thesis Figs. 7.1 and 7.4 say a few tens of nJ. Either way
+  no strong-field effect: the probe reads the chemistry and never drives it.
+- **The waveplate angle in the anti-phase filenames belongs to the probe-generation setup**, a
+  separate apparatus, and says nothing about the pump (user). The angles in the pump-only files
+  (87.75–91.15deg, tracking the 3/4/5 µJ labels) are presumably the pump attenuator that thesis 7.1
+  describes. No calibration of that angle exists (user): the in-fibre energy is what the user states
+  or what the paper or thesis writes, nothing else.
+- **Baseline sink settings are not decided** (user: the agents check; only the experimental results
+  are truth, every model parameter may move). The code defaults are stale: `Rates.WallParams` still
+  has γ(O) = 1e-3, `air_1d_live.jl` defaults to wall×1 and φ = 0.14, and the 255 nm match was run
+  with the wall off and `o3_from_adk=false`. The register records the baseline; no run relies on a
+  script default, and the agent preamble now says so.
+- **He-O₂ was never validated against a measurement.** The 9.3e24 m⁻³ / 3 % / 5 s ozone figures
+  (paper III B and Fig. 6b; thesis 7.3.3 and Fig. 7.9b) are explicitly simulation output. What was
+  measured (paper II E, Figs. 5 and 7a; thesis 7.2.4, Figs. 7.6 and 7.10a): 2.5 µJ in the fibre (user; the
+  thesis writes "launched"), 12 bar 79 %–21 % He-O₂, **22.5 cm** — `examples/he_o2.jl` uses 22 cm,
+  taken from the paper's Fig. 8 simulation example, and must be corrected. The RDW appears weakly
+  near 255–260 nm, vanishes, reappears near 275 nm, red-shifts to ~325 nm within ~10 s and holds
+  there for the rest of the run (the thesis figure spans 50 s, the text says 700 s), with no
+  periodicity. The He-O₂ outputs in `examples/` date from 2026-09-04, before the 21.0 eV
+  calibration; the case has not been re-run since. He-O₂'s regression target is the measured
+  wavelength trajectory, after a re-run at 21.0 eV, φ = 1, 22.5 cm.
+- **The grid data is raw h5, not images**: `Ozone paper/images/grid/` holds 31 files, three per
+  pressure per fibre length labelled 3, 4, 5 µJ, plus a 7-file 6 bar energy scan at 27 cm. Thesis
+  7.4 confirms the fill is air and does not state the energy convention; the figures' 1.6/2.2/2.8 µJ
+  are in-fibre and the files' 3/4/5 µJ labels map onto them in that order (user). Thesis 7.4 reads the panels slightly differently from the plan
+  (27 cm: 6 bar at 1.6, 2.2 and 2.8 µJ, not 7 bar; 22.5 cm: nothing at 7 or 8 bar) and says "no
+  obvious conclusion can be drawn" about the window; A1 settles it from the files.
+- **Tier 1 counts in the reduced model** (user), once it passes the reduced-model convergence gate
+  (tables, interpolation, zones, ODE tolerance, bundling interval); Phase 5 confirms in the full
+  model.
+- **A4 writes the reduced-model skeleton in Phase 0** (user: "the best agent"), so A2 has something
+  to analyse in Phase 1; zone structure is A4's call, starting from the 3-box
+  `examples/oscillation/nox_titration_model.jl`.
+- **Only the orchestrator commits, and only when satisfied** (user). Agents never run git commands
+  that change history.
+- **The remaining review gaps were resolved by the user's defaults (2026-09-11)**, all in the
+  plan: the `:O3_diss` fit is gated on A2's Phase 1 verdict; `:O2_diss` is refitted in Phase 3
+  against A1's digitised curve; the reduced-versus-full check points are four steady cells with
+  stated tolerances; A3 also tabulates per-zone photolysis rates; the mean probe-band absorption
+  is judging-only unless `hisol_stability2` justifies the detrend; A1 extracts any NO signature
+  for `:N2_diss`, else a 0.1×–10× bracket; the Phase 0 gate has a fixed feature list; file
+  formats are fixed in plan section 8.6; answers return through `ANSWERED_` files and
+  `SendMessage`; A5 rejects through `audit/REJECT_*`; a permission allow list sits in
+  `.claude/settings.json` in both `LupoAirOsc/` and `~/.julia/dev/`; Phase 5 order is 6 bar 2.2,
+  6 bar 2.8, 5 bar 2.2, 8 bar 2.2 with at most four Julia processes; this file's "Current stage"
+  was rewritten and the dispersion section corrected to 11 species with the N₂O₅ terms the code
+  already has; the plan's section 4 was folded into the section 8.2 briefs.
 
 ## AGENT MODELS, EFFORT AND USAGE LIMITS (2026-09-11)
 
@@ -1718,14 +1803,14 @@ the chemistry/diffusion timestep, which never coarsens.
 | `examples/uppe_trigger_validation.jl` | Strict-per-pulse vs. adaptive-trigger convergence check (not yet run). |
 | `examples/watch_run.jl` | Watches a `Monitor` history from another process. |
 
-## Dispersion: how the 10-species chemistry maps onto tracked gases
+## Dispersion: how the 11-species chemistry maps onto tracked gases
 
-`State.effective_densities` collapses the 10-species chemistry onto the
+`State.effective_densities` collapses the 11-species chemistry onto the
 gases Luna actually has dispersion data for, **conserving atoms**:
 
 ```
-N2_eff = N2 + 0.5*(N + NO + NO2 + NO3) + N2O
-O2_eff = O2 + 0.5*(O + O1D) + 0.5*NO + 1.0*NO2 + 1.5*NO3 + 0.5*N2O
+N2_eff = N2 + 0.5*(N + NO + NO2 + NO3) + N2O + N2O5
+O2_eff = O2 + 0.5*(O + O1D) + 0.5*NO + 1.0*NO2 + 1.5*NO3 + 0.5*N2O + 2.5*N2O5
 O3_eff = O3
 ```
 
