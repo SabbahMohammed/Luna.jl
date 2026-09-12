@@ -1436,6 +1436,10 @@ line plot of the two integrated traces.
 
 **The experiment.** 6 bar air, 2.5 µJ pump, 22.5 cm fibre, 1 kHz. A PCF-derived
 broadband probe co-propagates at the same rep rate, **~100 ns behind the pump**.
+*[2026-09-12, A5 audit: the 0–1400 s figure described here has NOT been matched to any h5 in
+the tree — the 61deg and 65deg anti-phase files are 957 s and 771 s long, so it is a third run —
+and the in-fibre energy of the 61deg/65deg runs is stated nowhere (the filename's 4uJ is a label).
+Do not carry this paragraph's 2.5 µJ to those files; see `questions/A5_BLOCKED_antiphase-energy.md`.]*
 Panel (a) is the transmitted probe, panel (b) the pump-generated RDW. The two
 line traces are those panels summed over wavelength. A SEPARATE probe run at
 **2 bar / 1.3 µJ generates no RDW at all** — that one is the clean
