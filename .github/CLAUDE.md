@@ -52,8 +52,10 @@ Two reference targets from the paper (Sec. III E, Fig. 5-7):
   `targets/` beyond the two raw extracts, no register, no reduced-model skeleton yet.
 - Calibrated so far: the `:O2_diss` ADK barrier, **21.0 eV**, from the early-time slope of the
   255 nm probe transmission (2 bar, 33 cm, 1.3 µJ in fibre); φ = 1 follows from it. γ(O) ≲ 1e-5 is
-  a bound from the same curve's late-time curvature, obtained with the wall off and
-  `o3_from_adk=false`. The barrier was fitted to a by-eye digitisation and is refitted in Phase 3.
+  a bound from the same curve's late-time curvature, obtained with the strong-field O₃ channel ON at
+  12.53 eV (the wall scan preceded the `o3_from_adk` switch), so it is a bound on the product
+  ⟨f_O₃⟩·γ(O), conditional on `:O3_diss` (corrected 2026-09-12; register `[gamma_O].bound_form`).
+  The barrier was fitted to a by-eye digitisation and is refitted in Phase 3.
 - Not calibrated: `:O3_diss` (12.53 eV; the ~14–14.5 eV figure is an extrapolation and the fit is
   gated on Phase 1), `:N2_diss` (21 eV, unconstrained), every wall coefficient other than γ(O),
   and the baseline sink settings themselves (undecided; the register will hold them).
@@ -66,6 +68,34 @@ Two reference targets from the paper (Sec. III E, Fig. 5-7):
   1.88e18 cm⁻² of ozone in 10 s, peaked at the compression point, and the RDW falls only 2.2 dB;
   the driver spectrum is identical in both RDW states (0.00 dB), so the switch is absorption of an
   already-generated RDW.
+
+### Phase 0 complete, Phase 1 started (2026-09-12)
+
+Committed on `agent-work` (eec0648, 9950982 and following). What changed in the picture:
+
+- **`targets/`** (A1): eleven targets with provenance. Calibration-grade: the 255 nm curve re-derived
+  from the h5 with an uncertainty budget (the by-eye table above was 10–15 % high at t < 2 s; the
+  paper's simulated 1.2 µJ curve at 2 s is 0.74, not 0.87, so the "27th-order" energy scaling is
+  ~15–17) and the He-O₂ RDW trajectory (220–400 nm window: plateau centroid 332–334 nm, 80 % of the
+  shift by ~5 s). **Gate 0→1: ALIKE** — air and synthetic N₂/O₂ oscillate the same way; dry network
+  kept; wall water not excluded. The 22.5 cm grid map: oscillation at 6 bar/2.2 µJ and 5 bar/2.2 µJ,
+  a weak regular ~1 dB modulation at 7 bar/2.8 µJ, steady elsewhere. The probe dips LEAD the RDW
+  rise by 22–30 s; RDW-vs-probe is a hysteretic loop. `hisol_stability2` is flat to 3 % over 165 s,
+  so the probe's 957 s decay is NOT shown to be the source; its spectral slope is opposite to NO₂'s;
+  origin open; mean probe absorption stays judging-only. NO γ lines are absent from the transmitted
+  6 bar spectra; the side-scattering h5 (6 bar air, 18.5 cm, energy not stated) shows fixed narrow
+  lines at 231.5 and 244.1 nm switching on ~30 s after the pump, plus an unidentified 352–427 nm set —
+  assignment open; `:N2_diss` stays unconstrained, bracket 0.1×–10×.
+- **`params/register.toml`** (A2, r3): single source of truth for every model parameter. Two confirmed
+  code defects: `Rates.jl` k11 = k12 (each O + NO₂ channel gets the total rate) and `PhotoChem.jl`
+  NO₂ photolysis yield 1 out to 660 nm (the Φ table is the O(³P) fall-off, misused). A3 is fixing both.
+- **`reduced/`** (A4): zone-chain skeleton U|G|D1|D2 with Dirichlet ends, the package chemistry and
+  pluggable optical closures; continuous source by default, saturating kicks as a mode — and the
+  finding that the two differ (13 % in O₃, 11 % in NO₂ at stand-in settings) through the bilinear
+  N + NO transient, so n = 1 kicks are the physical reference.
+- **Phase 1 first result** (A2, `params/IDENTIFIABILITY.md`): the 255 nm curve separates `:O3_diss`
+  from γ(O) **structurally** (globally, given k₁, k₂ and the end-exchange rates); the practical
+  question is the profile likelihood, held until A3's corrections land.
 
 ### Log of this section, 2026-09-02 to 2026-09-08 — kept as a record, superseded in places
 
