@@ -97,6 +97,27 @@ Committed on `agent-work` (eec0648, 9950982 and following). What changed in the 
   from γ(O) **structurally** (globally, given k₁, k₂ and the end-exchange rates); the practical
   question is the profile likelihood, held until A3's corrections land.
 
+### Phase 2 status (2026-09-14) — read `LupoAirOsc/progress/STATE.md` for the live state
+
+- **Operating model changed** (plan §4/§7/§8): one orchestrator does the science; Opus sub-agents for one-page
+  mechanical jobs; long runs detached. The five-agent scheme is withdrawn (context/cache cost, not compute).
+- **He-O₂ re-run (22.5 cm, 21 eV, φ = 1) misses the measured red-shift by 20–50 nm at every time**, and the reason is
+  placement: ozone at the compression point barely moves the band; ozone DOWNSTREAM sets both centroid and
+  transmission by absorbing the band's short side; upstream ozone does nothing. Nothing in the model puts ~1e17 cm⁻³
+  downstream within a second, and the measured band is already at 275–300 nm within 60 pulses. Fibre loss is not it
+  (210 nm walls → resonances ~240/440 nm; 255 nm is transmitted). The same gap shows at all four grid check points.
+  `tables/heo2_rerun/COMPARISON.md`, `tables/VALIDATION.md`.
+- **N₂O₅ photolysis added to the chemistry** (JPL 19-5 Table 4C-6-2); k11/k12 and the NO₂ yield corrected earlier.
+- **Leading candidate: the N₂O₅-reservoir cycle** (user's box model; plan §6). In the 4-zone reduced model on real
+  tables it oscillates in a window (inert NOy wall γ ≲ 1e-9, γ(NO₂) 3e-8–1e-7, nitrogen 1–5 % of the O source,
+  f2D ≥ 0.8) and **survives 16× zone refinement** (19 s / 1.2 dB and 31 s / 0.7 dB) plus every other gate variant —
+  a Tier 1 candidate in the reduced model, but 3–6× faster and far shallower than the 6 bar experiment, and its
+  reset differs from the box's (downstream titration vs N + NO). `reduced/N2O5_CANDIDATE.md`.
+- **The reduced model's RDW readout is not yet trusted**: slab, weighted-column and Beer–Lambert readouts all fail on
+  real profiles; a zone-density table on 4 zones near z_c is the fix under construction.
+- Apparatus facts from the user: wall thickness 210 nm; anti-phase and side-scattering runs 2.5 µJ; side fibre
+  27 cm; the 1400 s pump–probe run identified (30-05-2019 60deg file) and extracted as a judging target.
+
 ### Log of this section, 2026-09-02 to 2026-09-08 — kept as a record, superseded in places
 
 Everything from here to the next `##` heading was written before the 21.0 eV calibration and is
