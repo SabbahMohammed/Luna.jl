@@ -902,7 +902,18 @@ Answers to the plan review of 2026-09-11, plus a reading of the paper and thesis
   was rewritten and the dispersion section corrected to 11 species with the N₂O₅ terms the code
   already has; the plan's section 4 was folded into the section 8.2 briefs.
 
-## AGENT MODELS, EFFORT AND USAGE LIMITS (2026-09-11)
+## AGENT MODELS, EFFORT AND USAGE LIMITS (2026-09-11) — SUPERSEDED 2026-09-14
+
+**Superseded.** Two days of running five Fable sub-agents showed the session budget goes to context
+and cache, not compute (agents worked ~5 % of wall time; 95 % of context was tool output; every
+usage-limit pause killed the cache; every resume re-sent a transcript; the all-agents preamble cost
+~50k tokens per spawn). The plan's sections 4, 7, 8.1, 8.2 and 8.4 were rewritten: **one orchestrator
+(Fable, max) does the science itself** in short checkpointed packages, restarted from
+`LupoAirOsc/progress/STATE.md` at phase boundaries; **Opus sub-agents** take bounded mechanical jobs
+from a one-page brief, spawned fresh, never resumed, one at a time; the auditor stays independent.
+A fresh session reads `progress/STATE.md` first, not this file in full. The text below is history.
+
+### (historical) AGENT MODELS, EFFORT AND USAGE LIMITS (2026-09-11)
 
 User decision: the RDW-oscillation campaign runs **all on Fable**. The orchestrator, A4 DYNAMICS
 and A5 AUDIT run at **max** effort; A1 ORACLE, A2 REGISTER and A3 OPTICS at **xhigh**. The five
