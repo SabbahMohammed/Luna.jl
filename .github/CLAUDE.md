@@ -602,7 +602,11 @@ is the single most load-bearing fact in this file.**
   weakly dispersive — at the model's 1.3 % ozone, Δn at 800 nm is 3.86e-5, which
   is **14.6 % of (n_air − 1)** — so the model's ozone would rewrite the IR
   dynamics completely. Holding the IR index perturbation to a few percent caps
-  ozone at 0.1–0.3 %. (ii) "No visible sign for absorption around 650 nm": the
+  ozone at 0.1–0.3 %. *[Corrected 2026-09-14: that percentage divided by (n_air − 1)
+  at 1 bar. At 6 bar (n_air − 1) = 1.58e-3, and 1 % ozone replacing O₂ changes n(800 nm)
+  by 2.5e-5 = 1.6 % of it (Luna's own γ: ozone's per-molecule refractivity is 1.94× O₂'s).
+  So this bound is ~6× weaker than stated: the constant 800 nm spectrum caps ozone at
+  roughly 1–2 %, not 0.1–0.3 %. The Chappuis-null bound (ii) is unaffected.]* (ii) "No visible sign for absorption around 650 nm": the
   Chappuis band (σ = 3.67e-21 cm² at 650 nm, in Luna's own index) gives 0.4–1.0 dB
   at the model's column, which should be plainly visible. Below 0.1 dB caps the
   column at 6.3e18 cm⁻², a mean of 0.19 %. Both bounds agree; the model runs at
