@@ -1162,6 +1162,35 @@ function raman_parameters(material)
               # This gives a τ2v = 1/πΔν ~ 6 ps
               τ2v = 6e-12, # [5,9]
               )
+    elseif material == :O2
+        # Added 2026-09-15 (LupoAirOsc, air propagation). Same model as :N2.
+        # Rotational constants of O2 X 3Sigma_g^- (v = 0): B0 = 1.43768 cm^-1, D0 = 4.84e-6 cm^-1
+        # (Herzberg, Spectra of Diatomic Molecules; NIST Chemistry WebBook).
+        # 16O2: nuclear spin 0, Sigma_g^- ground state -> only odd J exist (qJeven = 0).
+        # Polarisability anisotropy 1.10e-30 m^3 (Bridge & Buckingham, Proc. R. Soc. A 295, 334 (1966));
+        # the rotational response of O2 vs N2 measured by [6] is consistent with this ratio (1.1/0.67)^2
+        # x rotational-population factors.
+        # Rotational dephasing: S-branch self-broadening of O2 ~0.09-0.10 cm^-1/atm at 296 K, comparable
+        # to N2's 0.08 (Sinclair et al., J. Mol. Spectrosc. 191, 258 (1998)) -> Bρr ~3.5e9 Hz/amagat
+        # (+-30 %, N2-like treatment).
+        # Vibration: ωv = 1556.4 cm^-1; dα/dQ from the O2:N2 vibrational Raman cross-section ratio ~1.0
+        # (Penney, St. Peters & Lapp, J. Raman Spectrosc. 2, 133 (1974) [4 of the n2 list]) with the
+        # reduced-mass and frequency factors -> 1.6e-20 (+-30 %); τ2v taken as N2's (assumption).
+        rp = (kind = :molecular,
+              rotation = :nonrigid,
+              vibration = :sdo,
+              B = 143.77,
+              D = 4.84e-4,
+              qJodd = 1,
+              qJeven = 0,
+              Δα = 1.1e-30,
+              Bρr = 3.5e9,
+              Aρr = 0.0,
+              dαdQ = 1.6e-20,
+              Ωv = 2*π*1556.4*100.0*c,
+              μ = (m_u*15.999)^2/(2*m_u*15.999),
+              τ2v = 6e-12,
+              )
     elseif material == :H2
         rp = (kind = :molecular,
               rotation = :nonrigid,
