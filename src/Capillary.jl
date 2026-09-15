@@ -67,6 +67,7 @@ losslabel(::Val{true}) = true
 losslabel(::Val{false}) = false
 losslabel(loss::Real) = loss
 losslabel(::Function) = true
+losslabel(loss::Symbol) = string(loss)   # the fork's loss=:gas option (2026-09-15, needed by TransModal's mode info)
 
 """
     MarcatiliMode(a, n, m, kind, ϕ, coren, cladn; model=:full, loss=true)
