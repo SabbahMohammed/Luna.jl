@@ -6,6 +6,10 @@
 > full energy and is superseded. Details: LupoAirOsc `params/register.toml` `[experiment.pulse]`,
 > `tables/probe255/README.md` §3, `progress/STATE.md`.
 >
+> **ENERGY CONVENTION (user, 2026-09-16):** file/thesis labels 3/4/5 µJ are INCIDENT; coupled = 0.62 × incident =
+> 1.86/2.48/3.10 µJ; main pulse = 0.8 × coupled. "6 bar / 2.2 µJ" is now 6 bar / 2.48 µJ COUPLED (main 1.98 µJ).
+> Drivers pass the coupled energy. Register `[experiment.pressure_and_energy]`.
+>
 > **6 BAR SOURCE (user, 2026-09-16):** O/N source = mode-averaged ionisation fraction × yield **2.3e-3** per
 > event (two atoms each; a lower bound fitted at 6 bar / 33 cm / 1.8 µJ coupled), `o_source=:ionisation`,
 > `ion_stat=:avg`. Register `[ion_yield_O2]` (per-pressure table: 1–2 bar 1.1e-4, 6 bar 2.3e-3) and `[baseline]`.
