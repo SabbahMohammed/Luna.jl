@@ -1,3 +1,11 @@
+> **STANDING RULE (user, 2026-09-16, all sessions):** the pump pulse is the MEASURED FROG field
+> (`LupoAirOsc/data/frog_13-03-2019/retrieved_13-03-2019/Ek.dat`, 28.7 fs, negatively chirped) and every
+> quoted energy is the COUPLED energy of which 20 % is ASE — the pulse carries 0.80 × coupled.
+> `LupoAirOsc.PropAir.propair` applies both by default. Deviate only on the user's explicit instruction.
+> Everything computed before 2026-09-16 (tables, He-O₂ re-runs, Phase 2 results) used a 30 fs Gaussian at
+> full energy and is superseded. Details: LupoAirOsc `params/register.toml` `[experiment.pulse]`,
+> `tables/probe255/README.md` §3, `progress/STATE.md`.
+
 # LupoAirOsc.jl — working context
 
 Place at repo root of `LupoAirOsc.jl`. Branch: `adding-Luna-rerun`. Companion
