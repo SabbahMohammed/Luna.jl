@@ -14,9 +14,10 @@
 > **CORE BY YEAR (user, 2026-09-16):** 2019 data = 26 µm core (a = 13e-6 m); 2020 data = 30 µm (a = 15e-6 m).
 > Register `[experiment.core_radius_m].core_by_year`.
 >
-> **6 BAR SOURCE (user, 2026-09-16):** O/N source = mode-averaged ionisation fraction × yield **2.3e-3** per
-> event (two atoms each; a lower bound fitted at 6 bar / 33 cm / 1.8 µJ coupled), `o_source=:ionisation`,
-> `ion_stat=:avg`. Register `[ion_yield_O2]` (per-pressure table: 1–2 bar 1.1e-4, 6 bar 2.3e-3) and `[baseline]`.
+> **6 BAR SOURCE (user, 2026-09-16):** O/N source = mode-averaged ionisation fraction × yield **1.7e-3** per
+> event (two atoms each; fitted at 6 bar / 33 cm / 26 µm / 1.4 µJ coupled), `o_source=:ionisation`, `ion_stat=:avg`.
+> Register `[ion_yield_O2]` (per-pressure table: 1–2 bar 1.3e-4, 6 bar 1.7e-3) and `[baseline]`. Ionisation: Luna PPT
+> (Talebpour Z_eff built in), Raman on, no dissociation responses, rate scale 1 (both 2020 energy-loss points fit).
 
 # LupoAirOsc.jl — working context
 
