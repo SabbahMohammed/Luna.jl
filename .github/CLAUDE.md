@@ -6,8 +6,9 @@
 > full energy and is superseded. Details: LupoAirOsc `params/register.toml` `[experiment.pulse]`,
 > `tables/probe255/README.md` §3, `progress/STATE.md`.
 >
-> **ENERGY CONVENTION (user, 2026-09-16):** file/thesis labels 3/4/5 µJ are INCIDENT; coupled = 0.62 × incident =
-> 1.86/2.48/3.10 µJ; main pulse = 0.8 × coupled. "6 bar / 2.2 µJ" is now 6 bar / 2.48 µJ COUPLED (main 1.98 µJ).
+> **ENERGY CONVENTION (user, 2026-09-16):** file/thesis labels 3/4/5 µJ are INCIDENT; coupled = coupling × incident,
+> coupling 0.62 (2019, 26 µm core) / ~0.84 (2020, 30 µm core); main pulse = 0.8 × coupled. The 2020 grid is
+> 2.52/3.36/4.20 µJ coupled; "6 bar / 2.2 µJ" is now 6 bar / 3.36 µJ COUPLED (main 2.69 µJ).
 > Drivers pass the coupled energy. Register `[experiment.pressure_and_energy]`.
 >
 > **CORE BY YEAR (user, 2026-09-16):** 2019 data = 26 µm core (a = 13e-6 m); 2020 data = 30 µm (a = 15e-6 m).
