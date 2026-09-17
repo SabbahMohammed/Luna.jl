@@ -17,7 +17,8 @@
 > **6 BAR SOURCE (user, 2026-09-16):** O/N source = mode-averaged ionisation fraction × yield **1.7e-3** per
 > event (two atoms each; fitted at 6 bar / 33 cm / 26 µm / 1.4 µJ coupled), `o_source=:ionisation`, `ion_stat=:avg`.
 > Register `[ion_yield_O2]` (per-pressure table: 1–2 bar 1.3e-4, 6 bar 1.7e-3) and `[baseline]`. Ionisation: Luna PPT
-> (Talebpour Z_eff built in), Raman on, no dissociation responses, rate scale 1 (both 2020 energy-loss points fit).
+> (Talebpour Z_eff built in), Raman on, rate scale 1 (both 2020 energy-loss points fit); the O3 strong-field response ON — `dissociate=(:O3,)` paired with
+> `o3_from_adk = true` (user, 2026-09-17; barrier 12.53 eV provisional, to be calibrated; the register yields are conditional on the old channel-off fit).
 
 # LupoAirOsc.jl — working context
 
