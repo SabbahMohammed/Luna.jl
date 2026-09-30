@@ -490,8 +490,10 @@ struct GasMixtureIndex{N, TF, TG, TS}
     lastz::Base.RefValue{Float64}
 end
 
-function GasMixtureIndex(gases::NTuple{N, Symbol}, fracs, press, T=roomtemp) where N
-    γs = Tuple(sellmeier_gas(gi) for gi in gases)
+function GasMixtureIndex(gases::NTuple{N, Symbol}, fracs, press, T=roomtemp; o3_dispersion=true) where N
+    # o3_dispersion=false (LupoAirOsc, 2026-09-30): ozone absorbs but has the real index of the O₂ it replaced
+    # (PhysData.γ_ozone_nodispersion), so it no longer shifts the dispersive-wave phase matching.
+    γs = Tuple((gi === :O3 && !o3_dispersion) ? PhysData.γ_ozone_nodispersion() : sellmeier_gas(gi) for gi in gases)
     # Headroom above the tabulated maximum: `fracs` are cubic splines through
     # `press` and may overshoot slightly between knots.
     Pmax = [1.05*maximum(Pi) + 1e-3 for Pi in press]
@@ -543,11 +545,12 @@ and `L` is the fibre length.
 
 Returns `(coren, fracs)`: a [`GasMixtureIndex`](@ref) usable as a
 `MarcatiliMode`'s core index, and the tuple of partial-pressure functions it was
-built from.
+built from. `o3_dispersion=false` keeps ozone's absorption but gives it the real
+index of the O₂ it was made from (`PhysData.γ_ozone_nodispersion`).
 """
-function gas_mixture(gases, press, L; T=roomtemp)
+function gas_mixture(gases, press, L; T=roomtemp, o3_dispersion=true)
     fracs = create_spline_pressure_function(press, L)
-    GasMixtureIndex(Tuple(gases), fracs, press, T), fracs
+    GasMixtureIndex(Tuple(gases), fracs, press, T; o3_dispersion), fracs
 end
 
 function create_spline_pressure_function(pressures, L)

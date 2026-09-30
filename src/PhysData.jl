@@ -179,6 +179,21 @@ function γ_ozone_analytical()
 end
 
 """
+    γ_ozone_nodispersion()
+
+Ozone's absorption without its dispersion (LupoAirOsc, 2026-09-30): the imaginary part of `γ_ozone_analytical`
+(the Hartley, Huggins and Chappuis absorption) with, as the real part, the polarisability of the 1.5 O₂ molecules
+each ozone molecule is made from. Ozone formation then leaves the real index of the gas -- and so the phase
+matching of a dispersive wave -- as in the unreacted gas, while ozone still absorbs. Selected by
+`Capillary.gas_mixture(...; o3_dispersion=false)`.
+"""
+function γ_ozone_nodispersion()
+    γO3 = γ_ozone_analytical()
+    γO2 = sellmeier_gas(:O2)
+    return μm -> 1.5 * real(γO2(μm)) + im * imag(γO3(μm))
+end
+
+"""
     γ_ozone()
 
 Density-normalised polarisability for ozone, derived from `ozone_ref_index` (a
